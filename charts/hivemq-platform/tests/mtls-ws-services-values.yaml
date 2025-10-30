@@ -1,0 +1,32 @@
+services:
+  - type: websocket
+    exposed: true
+    containerPort: 8000
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+    truststoreSecretName: "truststore-secret"
+    truststorePassword: "dHJ1c3RzdG9yZS1wYXNzd29yZA==" # truststore-password
+  - type: websocket
+    exposed: true
+    containerPort: 8001
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+    truststoreSecretName: "truststore-secret"
+    truststorePasswordSecretName: "secret-password"
+  - type: websocket
+    exposed: true
+    containerPort: 8002
+    keystoreSecretName: "keystore-secret1"
+    keystorePasswordSecretName: "secret-password1"
+    truststoreSecretName: "truststore-secret1"
+    truststorePasswordSecretName: "secret-password1"
+  - type: websocket
+    exposed: false
+    containerPort: 8003
+    keystoreSecretName: "keystore-secret-1886"
+    keystorePasswordSecretName: "secret-password-1886"
+    truststoreSecretName: "truststore-secret-1886"
+    truststorePassword: "dHJ1c3RzdG9yZS1wYXNzd29yZA==" # truststore-password
+  - type: websocket
+    exposed: true
+    containerPort: 8004

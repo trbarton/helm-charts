@@ -1,0 +1,464 @@
+suite: HiveMQ Platform - Control Center services tests
+templates:
+  - hivemq-custom-resource.yml
+release:
+  name: test-hivemq-platform
+tests:
+
+  - it: with a Control Center service enabled
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].ports[0]
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].ports
+          content:
+            name: cc-8081
+            containerPort: 8081
+      - exists:
+          path: spec.services
+      - contains:
+          path: spec.services
+          content:
+            metadata:
+              name: hivemq-test-hivemq-platform-cc-8081
+            spec:
+              ports:
+                - name: cc-8081
+                  targetPort: cc-8081
+                  port: 8081
+              sessionAffinity: ClientIP
+
+  - it: with a Control Center service disabled, no Control Center service added
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].ports[0]
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].ports
+          content:
+            name: cc-8081
+            containerPort: 8081
+      - exists:
+          path: spec.services
+      - notContains:
+          path: spec.services
+          content:
+            metadata:
+              name: hivemq-test-hivemq-platform-cc-8081
+            spec:
+              ports:
+                - name: cc-8081
+                  targetPort: cc-8081
+                  port: 8081
+              sessionAffinity: ClientIP
+
+  - it: with default Control Center service enabled, then service session affinity is `ClientIP`
+    asserts:
+      - exists:
+          path: spec.services
+      - contains:
+          path: spec.services
+          content:
+            metadata:
+              name: hivemq-test-hivemq-platform-cc-8080
+            spec:
+              ports:
+                - name: cc-8080
+                  targetPort: cc-8080
+                  port: 8080
+              sessionAffinity: ClientIP
+
+  - it: with Control Center service enabled and session affinity `ClientIP`, then service session affinity is `ClientIP`
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          sessionAffinity:
+            type: ClientIP
+    asserts:
+      - exists:
+          path: spec.services
+      - contains:
+          path: spec.services
+          content:
+            metadata:
+              name: hivemq-test-hivemq-platform-cc-8081
+            spec:
+              ports:
+                - name: cc-8081
+                  targetPort: cc-8081
+                  port: 8081
+              sessionAffinity: ClientIP
+
+  - it: with Control Center service enabled and session affinity `None`, then service session affinity is `None`
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          sessionAffinity:
+            type: None
+    asserts:
+      - exists:
+          path: spec.services
+      - contains:
+          path: spec.services
+          content:
+            metadata:
+              name: hivemq-test-hivemq-platform-cc-8081
+            spec:
+              ports:
+                - name: cc-8081
+                  targetPort: cc-8081
+                  port: 8081
+              sessionAffinity: None
+
+  - it: with a Control Center service enabled and PROXY protocol enabled, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          hivemqProxyProtocol: true
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8081` is using `hivemqProxyProtocol` value. HiveMQ PROXY protocol is only supported by MQTT and WebSocket services
+
+  - it: with a Control Center service disabled and PROXY protocol enabled, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+          hivemqProxyProtocol: true
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a Control Center service enabled and HiveMQ listener name enabled, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          hivemqListenerName: foobar
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8081` is using `hivemqListenerName` value. HiveMQ listener names are only supported by MQTT, WebSocket and REST API services
+
+  - it: with a Control Center service disabled and HiveMQ listener name enabled, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+          hivemqListenerName: foobar
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a Control Center service enabled and HiveMQ Connect Overload Protection enabled, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          hivemqConnectOverloadProtection:
+            enabled: true
+            connectRate: 500
+            connectBurstSize: 1000
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8081` is using `hivemqConnectOverloadProtection` value. HiveMQ Connect Overload Protection is only supported by MQTT and WebSocket services
+
+  - it: with a Control Center service disabled and HiveMQ Connect Overload Protection enabled, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+          hivemqConnectOverloadProtection:
+            enabled: true
+            connectRate: 500
+            connectBurstSize: 1000
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a Control Center service enabled and HiveMQ WebSocket path value, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+          path: /mqtt
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8081` is using `path` value. HiveMQ WebSocket path is only supported by WebSocket services
+
+  - it: with a Control Center service disabled and HiveMQ WebSocket path value, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+          path: /mqtt
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a non-secure Control Center service exposed and TLS protocol set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8443
+          tlsProtocols:
+            - TLSv1.2
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8443` is using `tlsProtocols` value. TLS protocols are only supported by secure services
+
+  - it: with a non-secure Control Center service non-exposed and TLS protocol set, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8443
+          tlsProtocols:
+            - TLSv1.2
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a non-secure Control Center service exposed and Cipher suites set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8443
+          tlsCipherSuites:
+            - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8443` is using `tlsCipherSuites` value. Cipher suites are only supported by secure services
+
+  - it: with a non-secure Control Center service non-exposed and Cipher suites set, validation succeeds
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8443
+          tlsCipherSuites:
+            - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with a secure Control Center service exposed and Client Authentication Mode set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8443
+          keystoreSecretName: "control-center-secret"
+          keystorePasswordSecretName: "secret-password"
+          tlsClientAuthenticationMode: "OPTIONAL"
+    asserts:
+      - failedTemplate:
+          errorPattern: Service type `control-center` with container port `8443` is using `tlsClientAuthenticationMode` value. Client Authentication Mode is only supported by secure MQTT or secure WebSocket services
+
+  - it: with a Control Center service enabled with default controlCenter values, no Control Center credentials EnvVar is created
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+
+  - it: with a Control Center service disabled, no Control Center credentials EnvVar is created
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+
+  - it: with a Control Center service disabled with username and password values, no Control Center credentials EnvVar is created
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+      controlCenter:
+        username: "admin"
+        password: "password"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+
+  - it: with a Control Center service disabled with controlCenter credential values, no Control Center credentials EnvVar is created
+    set:
+      services:
+        - type: control-center
+          exposed: false
+          containerPort: 8081
+      controlCenter.credentialsSecret:
+        name: "control-center-secret"
+        usernameKey: "username-secret-key"
+        passwordKey: "password-secret-key"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+
+  - it: with a Control Center service enabled with username and password values, no Control Center credentials EnvVar is created
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+      controlCenter:
+        username: "admin"
+        password: "password"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+
+  - it: with a Control Center service enabled with controlCenter credentials values, Control Center credentials EnvVars are created
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+      controlCenter.credentialsSecret:
+        name: "control-center-secret"
+        usernameKey: "username-secret-key"
+        passwordKey: "password-secret-key"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_username
+            valueFrom:
+              secretKeyRef:
+                key: username-secret-key
+                name: control-center-secret
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: test-hivemq-platform_control_center_password
+            valueFrom:
+              secretKeyRef:
+                key: password-secret-key
+                name: control-center-secret
+
+  - it: with a Control Center service enabled with controlCenter credentials, username values set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+      controlCenter:
+        username: "admin"
+        credentialsSecret:
+          name: "control-center-secret"
+          usernameKey: "username-secret-key"
+          passwordKey: "password-secret-key"
+    asserts:
+      - failedTemplate:
+          errorPattern: Either `username` and `password` values are set along with the `credentialSecret` values for Control Center. Only one can be defined at a time
+
+  - it: with a Control Center service enabled with controlCenter credentials, password values set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+      controlCenter:
+        password: "admin"
+        credentialsSecret:
+          name: "control-center-secret"
+          usernameKey: "username-secret-key"
+          passwordKey: "password-secret-key"
+    asserts:
+      - failedTemplate:
+          errorPattern: Either `username` and `password` values are set along with the `credentialSecret` values for Control Center. Only one can be defined at a time
+
+  - it: with a Control Center service enabled with controlCenter credentials, username and password values set, validation fails
+    set:
+      services:
+        - type: control-center
+          exposed: true
+          containerPort: 8081
+      controlCenter:
+        username: "admin"
+        password: "password"
+        credentialsSecret:
+          name: "control-center-secret"
+          usernameKey: "username-secret-key"
+          passwordKey: "password-secret-key"
+    asserts:
+      - failedTemplate:
+          errorPattern: Either `username` and `password` values are set along with the `credentialSecret` values for Control Center. Only one can be defined at a time

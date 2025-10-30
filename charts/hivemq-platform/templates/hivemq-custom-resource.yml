@@ -1,0 +1,357 @@
+{{- $hasKeystore := ( include "hivemq-platform.has-keystore" . ) -}}
+{{- $hasLicense := ( include "hivemq-platform.has-license" . ) -}}
+{{- $hasAdditionalVolumes := ( include "hivemq-platform.has-additional-volumes" . ) -}}
+{{- $hasAdditionalVolumeMounts := ( include "hivemq-platform.has-additional-volume-mounts" . ) -}}
+{{- $metricsPort := ( include "hivemq-platform.metrics-port" . ) -}}
+{{- $metricsContainerPortName := ( include "hivemq-platform.metrics-port-name" . ) -}}
+{{- $hasMetricService := ( include "hivemq-platform.has-default-metrics-service" . ) -}}
+{{- $hasStatefulSetMigration := ( include "hivemq-platform.has-legacy-statefulset-migration" . ) -}}
+apiVersion: hivemq.com/v1
+kind: HiveMQPlatform
+metadata:
+  name: "{{ .Release.Name }}"
+  {{- with .Values.operator.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "hivemq-platform.labels" . | nindent 4 }}
+    {{- with .Values.operator.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if and (ne .Values.operator.selector "nil") (.Values.operator.selector) }}
+    operator: {{ .Values.operator.selector }}
+    {{- end }}
+spec:
+  {{- $configName := include "hivemq-platform.configuration-name" . -}}
+  {{ ternary (printf "secretName: %s" $configName) (printf "configMapName: %s" $configName) (eq .Values.config.createAs "Secret") | nindent 2 }}
+  logLevel: {{ .Values.nodes.logLevel }}
+  operatorRestApiPort: {{ include "hivemq-platform.operator-rest-api-port" . }}
+  healthApiPort: {{ include "hivemq-platform.health-api-port" . }}
+  metricsPort: {{ $metricsPort }}
+  metricsPath: {{ .Values.metrics.path }}
+  statefulSet:
+    {{- if not .Values.config.overrideStatefulSet }}
+    spec:
+      replicas: {{.Values.nodes.replicaCount}}
+      template:
+        {{- if or .Values.nodes.annotations .Values.nodes.labels }}
+        metadata:
+          {{- with .Values.nodes.annotations }}
+          annotations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.nodes.labels }}
+          labels:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        spec:
+          {{- if .Values.image.pullSecretName }}
+          imagePullSecrets:
+            - name: {{ .Values.image.pullSecretName }}
+          {{- end }}
+          {{- if .Values.nodes.podSecurityContext.enabled }}
+          {{- $podSecurityContext := .Values.nodes.podSecurityContext }}
+          {{- include "hivemq-platform.validate-run-as-user-security-context" $podSecurityContext }}
+          securityContext:
+            {{- include "hivemq-platform.generate-run-as-security-context" (dict "securityContext" $podSecurityContext "indentation" 12) }}
+            {{- if hasKey $podSecurityContext "fsGroup" }}
+            fsGroup: {{ $podSecurityContext.fsGroup }}
+            {{- end }}
+            fsGroupChangePolicy: "OnRootMismatch"
+            {{- $filteredPodSecurityContext := omit $podSecurityContext "enabled" "fsGroup" "runAsGroup" "runAsNonRoot" "runAsUser" }}
+            {{- if gt (len $filteredPodSecurityContext) 0 }}
+            {{- toYaml $filteredPodSecurityContext | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- $additionalInitContainers := .Values.additionalInitContainers }}
+          {{- $overrideInitContainers := .Values.config.overrideInitContainers }}
+          {{- if and $overrideInitContainers $additionalInitContainers }}
+              {{- fail ("\nOnly `additionalInitContainers` or `config.overrideInitContainers` can be defined at a time") }}
+          {{- end }}
+          {{- if or $overrideInitContainers $additionalInitContainers }}
+          initContainers:
+          {{- if $overrideInitContainers }}
+          {{- $overrideInitContainers | nindent 12 }}
+          {{- else }}
+          {{- $additionalInitContainers | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.nodes.serviceAccountName }}
+          serviceAccountName: {{ .Values.nodes.serviceAccountName }}
+          {{- end }}
+          containers:
+            - name: hivemq
+              env:
+                - name: JAVA_OPTS
+                  value: {{ .Values.nodes.javaOpts | quote }}
+                {{- if $hasKeystore }}
+                {{- $envNamesKeyStorePasswordList := list }}
+                {{- $envNamesKeyStorePrivatePasswordList := list }}
+                {{- $envNamesTrustStoreList := list }}
+                {{- range $service := .Values.services }}
+                {{- if and $service.exposed $service.keystoreSecretName }}
+                {{- $envNameKeystorePassword := (printf "%s_%s_%s_%s" $service.type $.Release.Name $service.keystoreSecretName "keystore_pass") }}
+                {{- if not (has $envNameKeystorePassword $envNamesKeyStorePasswordList) }}
+                - name: {{ $envNameKeystorePassword }}
+                  {{- if $service.keystorePassword }}
+                  value: {{ $service.keystorePassword | b64dec | trim -}}
+                  {{- else if $service.keystorePasswordSecretName }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $service.keystorePasswordSecretName }}
+                      key: {{ $service.keystorePasswordSecretKey | default "keystore.password" }}
+                  {{- else }}
+                  {{- fail ("\nA keystore password should be set either as a string (keystorePassword) or as a secret name (keystorePasswordSecretName)") }}
+                  {{- end }}
+                {{- if or $service.keystorePrivatePassword (and $service.keystorePasswordSecretName $service.keystorePrivatePasswordSecretKey) }}
+                {{- $envNameKeystorePrivatePassword := include "hivemq-platform.keystore-private-password" (dict "releaseName" $.Release.Name "type" $service.type "keystoreSecretName" $service.keystoreSecretName "keystorePrivatePassword" $service.keystorePrivatePassword "keystorePrivatePasswordSecretKey" $service.keystorePrivatePasswordSecretKey) }}
+                {{- if not (has $envNameKeystorePrivatePassword $envNamesKeyStorePrivatePasswordList) }}
+                - name: {{ $envNameKeystorePrivatePassword }}
+                {{- if $service.keystorePrivatePassword }}
+                  value: {{ $service.keystorePrivatePassword | b64dec | trim -}}
+                {{- else }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $service.keystorePasswordSecretName }}
+                      key: {{ $service.keystorePrivatePasswordSecretKey }}
+                {{- end }}
+                {{- $envNamesKeyStorePrivatePasswordList = $envNameKeystorePrivatePassword | append $envNamesKeyStorePrivatePasswordList }}
+                {{- end }}
+                {{- end }}
+                {{- $envNamesKeyStorePasswordList = $envNameKeystorePassword | append $envNamesKeyStorePasswordList }}
+                {{- end }}
+                {{- if and $service.exposed $service.truststoreSecretName }}
+                {{- $envNameTrustorePassword := (printf "%s_%s_%s_%s" $service.type $.Release.Name $service.truststoreSecretName "truststore_pass") }}
+                {{- if not (has $envNameTrustorePassword $envNamesTrustStoreList) }}
+                - name: {{ $envNameTrustorePassword }}
+                  {{- if $service.truststorePassword }}
+                  value: {{ $service.truststorePassword | b64dec | trim -}}
+                  {{- else if $service.truststorePasswordSecretName }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ $service.truststorePasswordSecretName }}
+                      key: {{ $service.truststorePasswordSecretKey | default "truststore.password" }}
+                  {{- else }}
+                  {{- fail ("\nA truststore password should be set either as a string (truststorePassword) or as a secret name (truststorePasswordSecretName)") }}
+                  {{- end }}
+                  {{- $envNamesTrustStoreList = $envNameTrustorePassword | append $envNamesTrustStoreList }}
+                {{- end }}
+                {{- end }}
+                {{- end }}
+                {{- end }}
+                {{- end }}
+                {{- with .Values.nodes.env }}
+                  {{- toYaml . | nindent 16 }}
+                {{- end }}
+                {{- $hasControlCenter := include "hivemq-platform.has-service-type" (dict "services" .Values.services "expectedType" "control-center") }}
+                {{- if $hasControlCenter }}
+                {{- include "hivemq-platform.validate-control-center-credentials" . -}}
+                {{- with .Values.controlCenter.credentialsSecret }}
+                {{- $controlCenterUsernameEnvVar := (printf "%s_control_center_username" $.Release.Name) }}
+                - name: {{ $controlCenterUsernameEnvVar }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .name }}
+                      key: {{ .usernameKey }}
+                {{- $controlCenterPasswordEnvVar := (printf "%s_control_center_password" $.Release.Name) }}
+                - name: {{ $controlCenterPasswordEnvVar }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .name }}
+                      key: {{ .passwordKey }}
+                {{- end }}
+                {{- end }}
+              image: "{{ .Values.image.repository }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              ports:
+                {{- $containerPortNameList := list }}
+                {{- $containerPortName := "" }}
+                {{- range $service := .Values.services }}
+                  {{- $containerPortName = (include "hivemq-platform.container-port-name" .) }}
+                  {{- if ($service.exposed) }}
+                      {{- if (not (has $containerPortName $containerPortNameList)) }}
+                - name: {{ $containerPortName }}
+                  containerPort: {{ $service.containerPort }}
+                      {{- end }}
+                      {{- $containerPortNameList = $containerPortName | append $containerPortNameList }}
+                  {{- end }}
+                {{- end }}
+                {{- if and (not $hasMetricService) (not (has $metricsContainerPortName $containerPortNameList)) (.Values.metrics.enabled) (not $hasStatefulSetMigration) }}
+                - name: {{ $metricsContainerPortName }}
+                  containerPort: {{ printf "%d" (int64 $metricsPort) }}
+                {{- end }}
+              resources:
+                {{- if hasKey .Values.nodes.resources "overrideLimits" }}
+                {{- with .Values.nodes.resources.overrideLimits }}
+                limits:
+                  {{- toYaml . | nindent 18 }}
+                {{- end }}
+                {{- else }}
+                limits:
+                  cpu: {{ .Values.nodes.resources.cpu | trim | quote }}
+                  memory: {{ .Values.nodes.resources.memory | trim | quote }}
+                  {{- with .Values.nodes.resources.ephemeralStorage | quote }}
+                  ephemeral-storage: {{ . | trim }}
+                  {{- end }}
+                {{- end }}
+                requests:
+                  cpu: {{ .Values.nodes.resources.cpu | trim | quote }}
+                  memory: {{ .Values.nodes.resources.memory | trim | quote }}
+                  {{- with .Values.nodes.resources.ephemeralStorage }}
+                  ephemeral-storage: {{ . | trim | quote }}
+                  {{- end }}
+              {{- include "hivemq-platform.validate-additional-volumes" . -}}
+              {{- if or $hasAdditionalVolumeMounts (or $hasLicense $hasKeystore) }}
+              volumeMounts:
+                {{- if $hasLicense }}
+                - name: licenses
+                  mountPath: /opt/hivemq/license
+                {{- end }}
+                {{- if $hasKeystore }}
+                {{- include "hivemq-platform.get-tls-volume-mount" . | indent 16 }}
+                {{- end }}
+                {{- if $hasAdditionalVolumeMounts }}
+                {{- include "hivemq-platform.get-additional-volume-mounts" . | indent 16 }}
+                {{- end -}}
+              {{- end }}
+              {{- with .Values.nodes.containerSecurityContext }}
+              {{- $containerSecurityContext := . }}
+              {{- include "hivemq-platform.validate-run-as-user-security-context" $containerSecurityContext }}
+              securityContext:
+                {{- include "hivemq-platform.generate-run-as-security-context" (dict "securityContext" $containerSecurityContext "indentation" 16) }}
+                {{- $filteredContainerSecurityContext := omit $containerSecurityContext "runAsGroup" "runAsNonRoot" "runAsUser" }}
+                {{- if gt (len $filteredContainerSecurityContext) 0 }}
+                {{- toYaml $filteredContainerSecurityContext | nindent 16 }}
+                {{- end }}
+              {{- end }}
+            {{- with .Values.additionalContainers }}
+              {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if or $hasAdditionalVolumes (or $hasLicense $hasKeystore) }}
+          volumes:
+            {{- if $hasLicense }}
+            - name: licenses
+              secret:
+                {{- if eq .Values.license.name "" }}
+                secretName: {{ include "hivemq-platform.default-license-name" . }}
+                {{- else }}
+                secretName: {{ .Values.license.name }}
+                {{- end }}
+            {{- end }}
+            {{- if $hasKeystore }}
+              {{- (include "hivemq-platform.get-tls-secret-volumes" .) | indent 12 -}}
+            {{- end }}
+            {{- if $hasAdditionalVolumes }}
+              {{- include "hivemq-platform.get-additional-volumes" . | indent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- with .Values.podScheduling.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.podScheduling.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.volumeClaimTemplates }}
+      volumeClaimTemplates:
+        {{- toYaml . | nindent 12 }}
+      {{- end }}
+      {{- else -}}
+      {{.Values.config.overrideStatefulSet | nindent 3}}
+      {{- end }}
+  services:
+    {{- include "hivemq-platform.validate-services" . -}}
+    {{- range $service := .Values.services }}
+    {{- if $service.exposed }}
+    - metadata:
+        name: {{ (include "hivemq-platform.range-service-name" (dict "name" $service.name "releaseName" $.Release.Name "type" $service.type "port" $service.port "containerPort" $service.containerPort "legacyPortName" $service.legacyPortName)) }}
+        {{- with $service.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with $service.labels }}
+        labels:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        {{- if and $service.serviceType (or (eq $service.serviceType "NodePort") (eq $service.serviceType "LoadBalancer")) }}
+        type: {{ $service.serviceType }}
+        {{- end }}
+        {{- if $service.externalTrafficPolicy }}
+        externalTrafficPolicy: {{ $service.externalTrafficPolicy }}
+        {{- end }}
+        {{- if and (eq $service.type "control-center") (not (hasKey $service "sessionAffinity")) }}
+        sessionAffinity: ClientIP
+        {{- else if hasKey $service "sessionAffinity" }}
+        sessionAffinity: {{ $service.sessionAffinity.type }}
+        {{- end }}
+        ports:
+          - name: {{ include "hivemq-platform.service-port-name" . }}
+            targetPort: {{ include "hivemq-platform.container-port-name" . }}
+          {{- if $service.port }}
+            port: {{ $service.port }}
+          {{- else }}
+            port: {{ $service.containerPort }}
+          {{- end }}
+          {{- if and ($service.nodePort) (eq $service.serviceType "NodePort") }}
+            nodePort: {{ $service.nodePort }}
+          {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if and (not $hasMetricService) (.Values.metrics.enabled) (not $hasStatefulSetMigration) }}
+    - metadata:
+        name: {{ (include "hivemq-platform.range-service-name" (dict "name" "" "releaseName" $.Release.Name "type" "metrics" "port" $metricsPort "containerPort" $metricsPort)) }}
+      spec:
+        ports:
+          - name: {{ $metricsContainerPortName }}
+            targetPort: {{ $metricsContainerPortName }}
+            port: {{ printf "%d" (int64 $metricsPort) }}
+    {{- end }}
+  {{- if hasKey .Values "extensions" }}
+  extensions:
+    {{- include "hivemq-platform.validate-extensions" . -}}
+    {{- range $extension := .Values.extensions }}
+    - id: {{ $extension.name }}
+      {{- if hasKey $extension "enabled" }}
+      enabled: {{ printf "%t" $extension.enabled | default false }}
+      {{- else }}
+      enabled: false
+      {{- end }}
+      {{- if hasKey $extension "supportsHotReload" }}
+      supportsHotReload: {{ printf "%t" $extension.supportsHotReload | default false }}
+      {{- else }}
+      supportsHotReload: false
+      {{- end }}
+      {{- if hasKey $extension "configMapName" }}
+      configMapName: {{ $extension.configMapName | quote }}
+      {{- end }}
+      {{- if hasKey $extension "requestHeaderSecretName" }}
+      requestHeaderSecretName: {{$extension.requestHeaderSecretName | quote }}
+      {{- end }}
+      extensionUri: {{ $extension.extensionUri | default "preinstalled" | quote }}
+      {{- if hasKey $extension "customizationUri" }}
+      customizationUri: {{ $extension.customizationUri | quote }}
+      {{- end }}
+      {{- if hasKey $extension "priority" }}
+      extensionPriority: {{ $extension.priority | default -1 }}
+      {{- end }}
+      {{- if hasKey $extension "startPriority" }}
+      extensionStartPriority: {{ $extension.startPriority | default -1 }}
+      {{- end }}
+      {{- if hasKey $extension "secretName" }}
+      secretName: {{ $extension.secretName | quote }}
+      {{- end }}
+      {{- if hasKey $extension "skipHttpsCertificateValidation" }}
+      skipHttpsCertificateValidation: {{ $extension.skipHttpsCertificateValidation }}
+      {{- end }}
+      {{- if hasKey $extension "skipHttpsHostnameVerification" }}
+      skipHttpsHostnameVerification: {{ $extension.skipHttpsHostnameVerification }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  {{- if $hasStatefulSetMigration }}
+  statefulSetMigration: true
+  {{- end }}

@@ -1,0 +1,16 @@
+-----
+HiveMQ Platform release "{{.Release.Name}}" installed in namespace "{{.Release.Namespace}}"
+
+Documentation can be found here: https://docs.hivemq.com/hivemq-platform-operator/index.html
+{{- if .Values.config.overrideInitContainers }}
+
+*** Warning ***
+`config.overrideInitContainers` value is deprecated and will be removed in future releases.
+Please, consider using `additionalInitContainers` value instead.
+{{- end }}
+{{- if hasKey .Values.nodes.resources "overrideLimits" }}
+
+*** Warning ***
+`nodes.resources.overrideLimits` is not recommended for production use cases and may lead to unpredictable memory and cpu allocation for pods.
+{{- end }}
+-----

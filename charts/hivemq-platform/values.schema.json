@@ -1,0 +1,1043 @@
+{
+  "$schema" : "https://json-schema.org/draft/2020-12/schema",
+  "allOf" : [
+    {
+      "if" : {
+        "properties" : {
+          "migration" : {
+            "properties" : {
+              "statefulSet" : {
+                "const" : true
+              }
+            },
+            "required" : [
+              "statefulSet"
+            ],
+            "type" : "object"
+          }
+        },
+        "required" : [
+          "migration"
+        ]
+      },
+      "then" : {
+        "properties" : {
+          "services" : {
+            "items" : {
+              "required" : [
+                "containerPort",
+                "exposed",
+                "legacyPortName",
+                "type"
+              ]
+            }
+          }
+        }
+      },
+      "else" : {
+        "properties" : {
+          "services" : {
+            "items" : {
+              "required" : [
+                "containerPort",
+                "exposed",
+                "type"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "properties" : {
+    "additionalContainers" : {
+      "items" : {
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "additionalInitContainers" : {
+      "items" : {
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "additionalVolumes" : {
+      "items" : {
+        "properties" : {
+          "containerName" : {
+            "type" : "string"
+          },
+          "mountName" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "path" : {
+            "type" : "string"
+          },
+          "projectedSources" : {
+            "items" : {
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "subPath" : {
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [
+              "configMap",
+              "emptyDir",
+              "persistentVolumeClaim",
+              "projected",
+              "secret"
+            ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "config" : {
+      "description" : "Defines how the HiveMQ Platform configuration is deployed as a Kubernetes object.",
+      "properties" : {
+        "annotations" : {
+          "description" : "Defines specific annotations to be applied to the Kubernetes ConfigMap or Kubernetes Secret that contains the HiveMQ Platform configuration.",
+          "type" : "object"
+        },
+        "create" : {
+          "description" : "Boolean value, that configures whether to use a default HiveMQ configuration.",
+          "type" : "boolean"
+        },
+        "createAs" : {
+          "description" : "Defines how the HiveMQ Platform configuration should be stored into. Either a Kubernetes ConfigMap or a Kubernetes Secret.",
+          "enum" : [
+            "ConfigMap",
+            "Secret"
+          ],
+          "type" : "string"
+        },
+        "customLogbackConfig" : {
+          "description" : "Optional setting to provide a custom HiveMQ Platform logging configuration (logback.xml) from a file using --set-file config.customLogbackConfig=your-logback-config.xml.",
+          "type" : "string"
+        },
+        "customTracingConfig" : {
+          "description" : "Optional setting to provide a custom HiveMQ Platform tracing configuration (tracing.xml) from a file using --set-file config.customTracingConfig=your-tracing-config.xml.",
+          "type" : "string"
+        },
+        "dataHub" : {
+          "description" : "Optional setting to enable HiveMQ Data Hub functionality.",
+          "properties" : {
+            "behaviorValidationEnabled" : {
+              "description" : "Optional setting to enable data validation.",
+              "type" : "boolean"
+            },
+            "dataValidationEnabled" : {
+              "description" : "Optional setting to enable behavior validation.",
+              "type" : "boolean"
+            }
+          },
+          "type" : "object"
+        },
+        "labels" : {
+          "description" : "Defines specific labels to be applied to the Kubernetes ConfigMap or Kubernetes Secret that contains the HiveMQ Platform configuration.",
+          "type" : "object"
+        },
+        "name" : {
+          "description" : "The name of an existing Kubernetes ConfigMap or Secret with a valid HiveMQ configuration.",
+          "type" : "string"
+        },
+        "overrideHiveMQConfig" : {
+          "description" : "Optional setting to provide the HiveMQ configuration from a file using --set-file config.overrideHiveMQConfig=your-hivemq-config.xml.",
+          "type" : "string"
+        },
+        "overrideStatefulSet" : {
+          "description" : "Optional setting to provide the StatefulSetSpec configuration from a file using --set-file config.overrideStateFulSet=your-statefulsetspec.yml.",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "controlCenter" : {
+      "description" : "Optional setting to override the default username and password for the HiveMQ Control Center when the default configuration is used.",
+      "properties" : {
+        "credentialsSecret" : {
+          "description" : "Configures the Control Center credentials by using an existing Kubernetes Secret.",
+          "properties" : {
+            "name" : {
+              "description" : "Configures the name of an existing Kubernetes Secret containing the Control Center credentials.",
+              "type" : "string"
+            },
+            "passwordKey" : {
+              "description" : "Configures the key for the Kubernetes Secret used holding the Control Center password.",
+              "type" : "string"
+            },
+            "usernameKey" : {
+              "description" : "Configures the key for the Kubernetes Secret used holding the Control Center username.",
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        },
+        "password" : {
+          "description" : "The SHA256 encoded password for the HiveMQ Control Center user.",
+          "type" : "string"
+        },
+        "username" : {
+          "description" : "The name of the HiveMQ Control Center user.",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "extensions" : {
+      "items" : {
+        "properties" : {
+          "configMapName" : {
+            "maxLength" : 253,
+            "type" : "string"
+          },
+          "customizationUri" : {
+            "type" : "string"
+          },
+          "enabled" : {
+            "type" : "boolean"
+          },
+          "extensionUri" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "priority" : {
+            "type" : "integer"
+          },
+          "requestHeaderSecretName" : {
+            "maxLength" : 253,
+            "type" : "string"
+          },
+          "secretName" : {
+            "maxLength" : 253,
+            "type" : "string"
+          },
+          "skipHttpsCertificateValidation" : {
+            "description" : "Configures if certificate validation should be skipped for downloads of custom extensions or extension customizations.",
+            "type" : "boolean"
+          },
+          "skipHttpsHostnameVerification" : {
+            "description" : "Configures if hostname verification should be skipped for downloads of custom extensions or extension customizations.",
+            "type" : "boolean"
+          },
+          "startPriority" : {
+            "type" : "integer"
+          },
+          "supportsHotReload" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [
+          "name"
+        ],
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "hivemqClientEventHistory" : {
+      "description" : "Configures HiveMQ Client Event History options.",
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "lifetime" : {
+          "maximum" : 864000,
+          "minimum" : 1,
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqClusterFailureDetection" : {
+      "additionalProperties" : false,
+      "description" : "Configures HiveMQ Cluster failure detection. See https://docs.hivemq.com/hivemq/latest/user-guide/cluster.html#failure-detection.",
+      "properties" : {
+        "heartbeat" : {
+          "additionalProperties" : false,
+          "description" : "Continuously sends a heartbeat between nodes.",
+          "properties" : {
+            "enabled" : {
+              "description" : "Enables the heartbeat.",
+              "type": "boolean"
+            },
+            "interval" : {
+              "description" : "The interval in which a heartbeat message is sent to other nodes.",
+              "minimum" : 1,
+              "type" : "integer"
+            },
+            "timeout" : {
+              "description" : "Amount of time that is tolerated for the response to a heartbeat message before a node is temporarily removed from the cluster.",
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type" : "object"
+        },
+        "tcpHealthCheck" : {
+          "additionalProperties" : false,
+          "description" : "Holds an open TCP connection between nodes.",
+          "properties" : {
+            "bindAddress" : {
+              "description" : "The network address to bind to.",
+              "minLength" : 1,
+              "pattern": ".*\\S.*",
+              "type" : "string"
+            },
+            "bindPort" : {
+              "description" : "The port to bind to. 0 uses an ephemeral port.",
+              "maximum" : 65535,
+              "minimum" : 0,
+              "type" : "integer"
+            },
+            "enabled" : {
+              "description" : "Enables the TCP health check.",
+              "type": "boolean"
+            },
+            "externalAddress" : {
+              "description" : "The external address to bind to if the node is behind some kind of NAT.",
+              "minLength" : 1,
+              "pattern": ".*\\S.*",
+              "type" : "string"
+            },
+            "externalPort" : {
+              "description" : "The external port to bind to if the node is behind some kind of NAT.",
+              "maximum" : 65535,
+              "minimum" : 0,
+              "type" : "integer"
+            },
+            "portRange" : {
+              "description" : "Port range to check on other nodes.",
+              "type": "integer"
+            }
+          },
+          "type" : "object"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqClusterReplication" : {
+      "description" : "Configures HiveMQ Cluster replication. See https://docs.hivemq.com/hivemq/latest/user-guide/cluster.html#replication.",
+      "properties" : {
+        "replicaCount" : {
+          "description" : "Number of replicas to be persisted across cluster nodes.",
+          "minimum" : 1,
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqInternalOptions" : {
+      "additionalProperties" : false,
+      "description" : "HiveMQ Internal Options configuration.",
+      "items" : {
+        "properties" : {
+          "key" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "required" : [
+          "key",
+          "value"
+        ],
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "hivemqMqtt" : {
+      "description" : "Configures HiveMQ MQTT options. See https://docs.hivemq.com/hivemq/latest/user-guide/configuration.html#mqtt-config.",
+      "properties" : {
+        "keepAliveAllowUnlimited" : {
+          "description" : "Defines whether clients can have unlimited keep alive.",
+          "type" : "boolean"
+        },
+        "keepAliveMax" : {
+          "description" : "Defines the maximum keep alive value that a client can set.",
+          "maximum" : 65535,
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "maxPacketSize" : {
+          "description" : "Defines the maximum packet size that the broker accepts from clients.",
+          "maximum" : 268435460,
+          "minimum" : 15,
+          "type" : "integer"
+        },
+        "maxQualityOfService" : {
+          "description" : "Defines the maximum Quality of Service (QoS) level allowed in MQTT PUBLISH messages.",
+          "enum" : [
+            0,
+            1,
+            2
+          ],
+          "type" : "integer"
+        },
+        "messageExpiryMaxInterval" : {
+          "description" : "Defines the maximum message expiry value that clients can set.",
+          "maximum" : 4294967296,
+          "minimum" : 0,
+          "type" : "integer"
+        },
+        "queuedMessagesMaxSize" : {
+          "description" : "Sets the maximum number of messages the HiveMQ broker can store per client.",
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "queuedMessagesStrategy" : {
+          "description" : "Defines how messages that arrive at the HiveMQ broker when the message queue of the corresponding client is full are handled.",
+          "enum" : [
+            "discard",
+            "discard-oldest"
+          ],
+          "type" : "string"
+        },
+        "retainedMessages" : {
+          "description" : "Defines whether retained messages are supported.",
+          "type" : "boolean"
+        },
+        "serverReceiveMaximum" : {
+          "description" : "Defines the maximum number of concurrent publishes the broker accepts from one client.",
+          "maximum" : 65535,
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "sharedSubscriptions" : {
+          "description" : "Defines whether clients can use shared subscriptions.",
+          "type" : "boolean"
+        },
+        "sessionExpiryMaxInterval" : {
+          "description" : "Defines the maximum session expiry value that clients can set.",
+          "maximum" : 4294967295,
+          "minimum" : 0,
+          "type" : "integer"
+        },
+        "subscriptionIdentifier" : {
+          "description" : "Defines whether clients can use subscription identifiers to associate received publishes with their subscriptions.",
+          "type" : "boolean"
+        },
+        "topicAliasEnabled" : {
+          "description" : "Defines whether topic aliases are enabled by the broker.",
+          "type" : "boolean"
+        },
+        "topicAliasMaxPerClient" : {
+          "description" : "The number of topic aliases available per client.",
+          "maximum" : 65535,
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "wildcardSubscriptions" : {
+          "description" : "Defines whether clients can use wildcard characters in topic filters.",
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqMqttAddons" : {
+      "description" : "Configures HiveMQ MQTT Add-on options. See https://docs.hivemq.com/hivemq/latest/user-guide/mqtt-add-ons.html.",
+      "properties" : {
+        "deadMessagesTopic" : {
+          "description" : "Captures all dead messages on the HiveMQ system.",
+          "type" : "boolean"
+        },
+        "droppedMessagesTopic" : {
+          "description" : "Captures all dropped messages on the HiveMQ system.",
+          "type" : "boolean"
+        },
+        "expiredMessagesTopic" : {
+          "description" : "Captures all expired messages on the HiveMQ system.",
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqMqttSecurity" : {
+      "description" : "Configures HiveMQ MQTT security options. See https://docs.hivemq.com/hivemq/latest/user-guide/configuration.html#security.",
+      "properties" : {
+        "allowEmptyClientId" : {
+          "description" : "Allows the use of empty client ids. If this is set to true, HiveMQ automatically generates random client ids, when clientId in the CONNECT packet is empty.",
+          "type" : "boolean"
+        },
+        "allowRequestProblemInformation" : {
+          "description" : "Allows the client to request the problem information. When set to false, no reason string or user property values are sent to clients.",
+          "type" : "boolean"
+        },
+        "controlCenterAuditLog" : {
+          "description" : "If audit logging for the control center is enabled.",
+          "type" : "boolean"
+        },
+        "payloadFormatValidation" : {
+          "description" : "Enables the UTF-8 validation of UTF-8 PUBLISH payloads.",
+          "type" : "boolean"
+        },
+        "restApiAuditLog" : {
+          "description" : "Defines whether audit logging for the REST API is enabled.",
+          "type" : "boolean"
+        },
+        "utf8Validation" : {
+          "description" : "Enables the UTF-8 validation of topic names and client IDs.",
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqOverloadProtection" : {
+      "description" : "Configures HiveMQ Cluster overload protection. See https://docs.hivemq.com/hivemq/latest/user-guide/overload-protection.html.",
+      "properties" : {
+        "enabled" : {
+          "description" : "Enables the HiveMQ Cluster overload protection.",
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "hivemqRestrictions" : {
+      "description" : "Configures the HiveMQ restriction options. See https://docs.hivemq.com/hivemq/latest/user-guide/restrictions.html.",
+      "properties" : {
+        "incomingBandwidthThrottling" : {
+          "description" : "The maximum incoming traffic as bytes per second (b/s).",
+          "minimum" : 0,
+          "type" : "integer"
+        },
+        "maxClientIdLength" : {
+          "description" : "The maximum number of characters HiveMQ accepts in an MQTT-client ID.",
+          "maximum" : 65535,
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "maxConnections" : {
+          "description" : "The maximum number of concurrent MQTT connections the HiveMQ instance allows.",
+          "minimum" : -1,
+          "type" : "integer"
+        },
+        "maxTopicLength" : {
+          "description" : "The maximum number of characters HiveMQ accepts in a topic string.",
+          "maximum" : 65535,
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "noConnectIdleTimeout" : {
+          "description" : "The time in milliseconds that HiveMQ waits for a CONNECT message of a client before an open TCP socket is closed.",
+          "minimum" : 0,
+          "type" : "integer"
+        }
+      },
+      "type" : "object"
+    },
+    "image" : {
+      "properties" : {
+        "name" : {
+          "type" : "string"
+        },
+        "pullPolicy" : {
+          "type" : "string",
+          "enum" : [
+            "Always",
+            "IfNotPresent",
+            "Never"
+          ]
+        },
+        "pullSecretName" : {
+          "type" : "string"
+        },
+        "repository" : {
+          "type" : "string"
+        },
+        "tag" : {
+          "type" : "string"
+        }
+      },
+      "required" : [
+        "name",
+        "repository"
+      ],
+      "type" : "object"
+    },
+    "license" : {
+      "description" : "Defines all HiveMQ licenses to be used for the HiveMQ Platform.",
+      "properties" : {
+        "additionalLicenses" : {
+          "description" : "Adds additional main HiveMQ licenses to the Kubernetes Secret as .lic files, if needed.",
+          "type" : "object"
+        },
+        "annotations" : {
+          "description" : "Defines specific annotations to be applied to the Kubernetes Secret that contains the HiveMQ licenses.",
+          "type" : "object"
+        },
+        "create" : {
+          "description" : "Creates a Kubernetes Secret for all configured HiveMQ licenses.",
+          "type" : "boolean"
+        },
+        "data" : {
+          "description" : "The main HiveMQ license as a string. By default, this data must be a Base64 encoded string. Otherwise, set isLicenseBase64Encoded=false to use a clear string.",
+          "type" : "string"
+        },
+        "dataHub" : {
+          "description" : "Configures a list of HiveMQ Data Hub licenses to include as part of the Kubernetes Secret.",
+          "type" : "object"
+        },
+        "extensions" : {
+          "description" : "Defines a list of HiveMQ Enterprise Extension licenses to include as part of the Kubernetes Secret.",
+          "type" : "object"
+        },
+        "labels" : {
+          "description" : "Defines specific labels to be applied to the Kubernetes Secret that contains the HiveMQ licenses.",
+          "type" : "object"
+        },
+        "name" : {
+          "description" : "Defines the name of the Kubernetes Secret that contains the HiveMQ licenses.",
+          "type" : "string"
+        },
+        "overrideLicense" : {
+          "description" : "Sets the main HiveMQ license with your own file from a specified license path.",
+          "type" : "string"
+        },
+        "isLicenseBase64Encoded" : {
+          "description" : "Configures whether to use a Base64 encoded string (data) or clear string (stringData) for the Kubernetes Secret. The default setting is `true`.",
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "metrics" : {
+      "properties" : {
+        "enabled" : {
+          "type" : "boolean"
+        },
+        "path" : {
+          "type" : "string"
+        },
+        "port" : {
+          "type" : "integer",
+          "maximum" : 65535,
+          "minimum" : 0
+        }
+      },
+      "type" : "object"
+    },
+    "migration" : {
+      "properties" : {
+        "statefulSet" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "monitoring" : {
+      "description" : "Enables the ServiceMonitor resource and Grafana dashboard creation for the platform.",
+      "properties" : {
+        "enabled" : {
+          "description" : "Defines whether the monitoring configuration for the HiveMQ Platform is enabled. The default setting is `false`.",
+          "type" : "boolean"
+        },
+        "dashboard" : {
+          "description" : "Grafana dashboard configuration options.",
+          "properties" : {
+            "create" : {
+              "description" : "Boolean value that configures whether to use the default HiveMQ Platform Grafana dashboard ConfigMap. The default setting is `true`.",
+              "type" : "boolean"
+            },
+            "namespace" : {
+              "description" : "Namespace where to deploy the Grafana dashboard ConfigMap. Defaults to the namespace of the HiveMQ Platform.",
+              "maxLength" : 63,
+              "type" : "string"
+            },
+            "overrideDashboard" : {
+              "description" : "Sets the Grafana dashboard content for the HiveMQ Platform Grafana dashboard ConfigMap with your own JSON file from a specified path.",
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        },
+        "serviceMonitor" : {
+          "description" : "Prometheus ServiceMonitor configuration options.",
+          "properties" : {
+            "interval" : {
+              "description" : "Defines how often Prometheus scrapes metrics from the operator endpoints. Valid formats include `1d`, `1h30m`, `5m`, and `10s`. Defaults to 15 seconds.",
+              "pattern" : "^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$",
+              "type" : "string"
+            },
+            "namespace" : {
+              "description" : "Namespace where to deploy the ServiceMonitor. Defaults to the namespace of the HiveMQ Platform.",
+              "maxLength" : 63,
+              "type" : "string"
+            },
+            "releaseName" : {
+              "description" : "Helm chart release name of the Prometheus Monitoring stack available in the Kubernetes cluster. Defaults to the HiveMQ Platform Helm chart release name.",
+              "type" : "string"
+            },
+            "scrapeTimeout" : {
+              "description" : "Defines the maximum duration allowed for scraping metrics from the endpoints defined in the ServiceMonitor resource. Valid formats include `1d`, `1h30m`, `5m`, and `10s`. Defaults to 10 seconds.",
+              "pattern" : "^(0|(([0-9]+)y)?(([0-9]+)w)?(([0-9]+)d)?(([0-9]+)h)?(([0-9]+)m)?(([0-9]+)s)?(([0-9]+)ms)?)$",
+              "type" : "string"
+            }
+          },
+          "type" : "object"
+        }
+      },
+      "type" : "object"
+    },
+    "nodes" : {
+      "properties" : {
+        "annotations" : {
+          "type" : "object"
+        },
+        "containerSecurityContext" : {
+          "description" : "Configures container security for both HiveMQ Init and HiveMQ main container. Some fields are present in both SecurityContext and PodSecurityContext. When both are set, the values in SecurityContext take precedence.",
+          "properties" : {
+            "runAsGroup" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "runAsNonRoot" : {
+              "type" : "boolean"
+            },
+            "runAsUser" : {
+              "format" : "int64",
+              "type" : "integer"
+            }
+          },
+          "type" : "object"
+        },
+        "env" : {
+          "items" : {
+            "type" : "object"
+          },
+          "type" : "array"
+        },
+        "javaOpts" : {
+          "type" : "string"
+        },
+        "labels" : {
+          "type" : "object"
+        },
+        "logLevel" : {
+          "type" : "string",
+          "enum" : [
+            "DEBUG",
+            "ERROR",
+            "FATAL",
+            "INFO",
+            "TRACE",
+            "WARN"
+          ]
+        },
+        "podSecurityContext" : {
+          "description" : "Configures pod-level security for the HiveMQ Platform pod. Some fields are also present in container.securityContext. Field values of container.securityContext take precedence over field values of PodSecurityContext.",
+          "properties" : {
+            "enabled" : {
+              "type" : "boolean"
+            },
+            "fsGroup" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "runAsGroup" : {
+              "format" : "int64",
+              "type" : "integer"
+            },
+            "runAsNonRoot" : {
+              "type" : "boolean"
+            },
+            "runAsUser" : {
+              "format" : "int64",
+              "type" : "integer"
+            }
+          },
+          "type" : "object"
+        },
+        "replicaCount" : {
+          "minimum" : 1,
+          "type" : "integer"
+        },
+        "resources" : {
+          "properties" : {
+            "cpu" : {
+              "type" : "string"
+            },
+            "ephemeralStorage" : {
+              "type" : "string"
+            },
+            "memory" : {
+              "type" : "string"
+            },
+            "overrideLimits" : {
+              "type" : "object"
+            }
+          },
+          "type" : "object"
+        },
+        "serviceAccountName" : {
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "operator" : {
+      "description" : "Provides the selection criteria to identify which operator manages the selected HiveMQ Platform custom resource.",
+      "properties" : {
+        "annotations" : {
+          "description" : "Annotations to add to the HiveMQ Platform custom resource.",
+          "type" : "object"
+        },
+        "labels" : {
+          "description" : "Labels to add to the HiveMQ Platform custom resource.",
+          "type" : "object"
+        },
+        "selector" : {
+          "description" : "Selector name to configure which HiveMQ Platform Operator manages this platform.",
+          "type" : "string"
+        }
+      },
+      "type" : "object"
+    },
+    "podScheduling" : {
+      "properties" : {
+        "affinity" : {
+          "type" : "object"
+        },
+        "tolerations" : {
+          "items" : {
+            "type" : "object"
+          },
+          "type" : "array"
+        }
+      },
+      "type" : "object"
+    },
+    "restApi" : {
+      "properties" : {
+        "authEnabled" : {
+          "type" : "boolean"
+        }
+      },
+      "type" : "object"
+    },
+    "services" : {
+      "items" : {
+        "properties" : {
+          "annotations" : {
+            "type" : "object"
+          },
+          "tlsCipherSuites" : {
+            "additionalProperties": false,
+            "description" : "Optional setting to explicitly define the accepted cipher suites.",
+            "items" : {
+              "minLength" : 1,
+              "pattern": ".*\\S.*",
+              "type" : "string"
+            },
+            "minItems": 1,
+            "type" : "array"
+          },
+          "containerPort" : {
+            "maximum" : 65535,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "exposed" : {
+            "type" : "boolean"
+          },
+          "externalTrafficPolicy" : {
+            "description" : "Describes if the Service routes external traffic to node-local or cluster-wide endpoints. See https://kubernetes.io/docs/reference/networking/virtual-ips/#external-traffic-policy.",
+            "enum" : [
+              "Cluster",
+              "Local"
+            ],
+            "type" : "string"
+          },
+          "hivemqConnectOverloadProtection" : {
+            "description" : "Configures the connect overload protection for the HiveMQ MQTT and WebSocket listeners.",
+            "properties" : {
+              "connectBurstSize" : {
+                "description" : "The maximum amount of simultaneous `CONNECT` messages that the listener allows for short periods. The burst size cannot be set to 0 (zero). \nWhen no burst rate is specified, the listener allows a burst rate that is double the defined connect rate.",
+                "exclusiveMinimum" : 0,
+                "format" : "int64",
+                "type" : "integer"
+              },
+              "connectRate" : {
+                "description" : "The maximum sustained rate of connects that the listener allows per second. The connect rate cannot be set to 0 (zero). The default setting is `500`.",
+                "exclusiveMinimum" : 0,
+                "type" : "number"
+              },
+              "enabled" : {
+                "description" : "Defines whether connect overload protection is enabled. Possible values are `true` and `false`. The default setting is `true`.",
+                "type" : "boolean"
+              }
+            },
+            "type" : "object"
+          },
+          "hivemqListenerName" : {
+            "description" : "Defines the optional custom name for the MQTT, WebSocket and REST API listeners.",
+            "type" : "string"
+          },
+          "hivemqProxyProtocol" : {
+            "type" : "boolean"
+          },
+          "keystorePassword" : {
+            "type" : "string"
+          },
+          "keystorePasswordSecretKey" : {
+            "type" : "string"
+          },
+          "keystorePasswordSecretName" : {
+            "type" : "string"
+          },
+          "keystorePrivatePassword" : {
+            "type" : "string"
+          },
+          "keystorePrivatePasswordSecretKey" : {
+            "type" : "string"
+          },
+          "keystoreSecretKey" : {
+            "type" : "string"
+          },
+          "keystoreSecretName" : {
+            "type" : "string"
+          },
+          "labels" : {
+            "type" : "object"
+          },
+          "legacyPortName" : {
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 63,
+            "type" : "string"
+          },
+          "nodePort" : {
+            "description" : "Defines the port that the service exposes to external clients when the service type is set to `NodePort`.",
+            "maximum" : 65535,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "path" : {
+            "description" : "The last part of the path to the WebSocket. For the HiveMQ WebSocket listener, /mqtt routes to ws://broker.hivemq.com:8000/mqtt.",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "port" : {
+            "maximum" : 65535,
+            "minimum" : 0,
+            "type" : "integer"
+          },
+          "serviceType" : {
+            "enum" : [
+              "ClusterIP",
+              "LoadBalancer",
+              "NodePort"
+            ],
+            "type" : "string"
+          },
+          "sessionAffinity" : {
+            "additionalProperties" : false,
+            "description" : "Used to maintain session affinity. More info: https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies",
+            "properties" : {
+              "type" : {
+                "description" : "Session affinity type. Must be ClientIP or None. Defaults to `ClientIP` for `control-services` service type.",
+                "enum" : [
+                  "ClientIP",
+                  "None"
+                ],
+                "type" : "string"
+              }
+            },
+            "type" : "object"
+          },
+          "tlsClientAuthenticationMode" : {
+            "enum" : [
+              "NONE",
+              "OPTIONAL",
+              "REQUIRED"
+            ],
+            "type" : "string"
+          },
+          "tlsProtocols" : {
+            "additionalProperties": false,
+            "description" : "Optional setting to explicitly define the accepted TLS version.",
+            "items" : {
+              "minLength" : 1,
+              "pattern": ".*\\S.*",
+              "type" : "string"
+            },
+            "minItems": 1,
+            "type" : "array"
+          },
+          "truststorePassword" : {
+            "type" : "string"
+          },
+          "truststorePasswordSecretName" : {
+            "type" : "string"
+          },
+          "truststorePasswordSecretKey" : {
+            "type" : "string"
+          },
+          "truststoreSecretKey" : {
+            "type" : "string"
+          },
+          "truststoreSecretName" : {
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [
+              "control-center",
+              "metrics",
+              "mqtt",
+              "rest-api",
+              "websocket"
+            ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "type" : "array"
+    },
+    "volumeClaimTemplates" : {
+      "items" : {
+        "properties" : {
+          "apiVersion" : {
+            "enum" : [
+              "v1"
+            ],
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [
+              "PersistentVolumeClaim"
+            ],
+            "type" : "string"
+          },
+          "metadata" : {
+            "type" : "object"
+          },
+          "spec" : {
+            "type" : "object"
+          }
+        },
+        "required" : [
+          "apiVersion",
+          "kind",
+          "metadata",
+          "spec"
+        ],
+        "type" : "object"
+      },
+      "type" : "array"
+    }
+  },
+  "type" : "object"
+}

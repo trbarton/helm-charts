@@ -1,0 +1,54 @@
+services:
+  - type: mqtt
+    exposed: true
+    containerPort: 1883
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+  - type: mqtt
+    exposed: true
+    containerPort: 1884
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+  - type: mqtt
+    exposed: true
+    containerPort: 1885
+    keystoreSecretName: "keystore-secret1"
+    keystorePasswordSecretName: "secret-password1"
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-mqtt-listener-1885
+    hivemqConnectOverloadProtection:
+      enabled: true
+      connectRate: 500
+      connectBurstSize: 1000
+  - type: mqtt
+    exposed: false
+    containerPort: 1886
+    keystoreSecretName: "keystore-secret2"
+    keystorePasswordSecretName: "secret-password2"
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-mqtt-listener-1886
+  - type: mqtt
+    exposed: true
+    containerPort: 1887
+    keystoreSecretName: "keystore-secret3"
+    keystorePassword: "a2V5LWNoYW5nZW1lCg==" # key-changeme
+    keystorePrivatePassword: "cHJpdmF0ZS1rZXktY2hhbmdlbWU=" # private-key-changeme
+    hivemqProxyProtocol: false
+  - type: mqtt
+    exposed: true
+    containerPort: 1888
+    keystoreSecretName: "keystore-secret4"
+    keystorePasswordSecretName: "secret-password4"
+    keystorePrivatePasswordSecretKey: "my-custom-secret-key.private-password"
+  - type: mqtt
+    exposed: true
+    containerPort: 1889
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-mqtt-listener-1889
+  - type: mqtt
+    exposed: true
+    containerPort: 1890
+    hivemqConnectOverloadProtection:
+      enabled: false
+      connectRate: 100
+      connectBurstSize: 200

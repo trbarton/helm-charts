@@ -1,0 +1,1402 @@
+suite: HiveMQ Platform - CustomResource tests
+templates:
+  - hivemq-custom-resource.yml
+release:
+  name: test-hivemq-platform
+chart:
+  version: 0.0.1
+  appVersion: 1.0.0
+tests:
+
+  - it: with default values, default CustomResource created
+    asserts:
+      - containsDocument:
+          apiVersion: hivemq.com/v1
+          kind: HiveMQPlatform
+          name: test-hivemq-platform
+
+  - it: with default values, only default labels created
+    asserts:
+      - isSubset:
+          path: metadata.labels
+          content:
+            helm.sh/chart: hivemq-platform-0.0.1
+            app.kubernetes.io/name: hivemq-platform
+            app.kubernetes.io/instance: test-hivemq-platform
+            app.kubernetes.io/version: 1.0.0
+            app.kubernetes.io/managed-by: Helm
+      - notExists:
+          path: metadata.annotations
+
+  - it: with a custom operator selector
+    set:
+      operator.selector: north
+    asserts:
+      - exists:
+          path: metadata.labels.operator
+      - equal:
+          path: metadata.labels.operator
+          value: north
+
+  - it: with default values, no operator selector label set
+    asserts:
+      - notExists:
+          path: metadata.labels.operator
+
+  - it: with nil operator selector value, no operator selector label set
+    asserts:
+      - notExists:
+          path: metadata.labels.operator
+
+  - it: with custom labels, custom HiveMQPlatform labels set
+    set:
+      operator.labels:
+        group: alpha
+        tier: one
+    asserts:
+      - exists:
+          path: metadata.labels
+      - isSubset:
+          path: metadata.labels
+          content:
+            group: alpha
+            tier: one
+      - notExists:
+          path: metadata.annotations
+
+  - it: with invalid custom invalid labels, schema validation fails
+    set:
+      operator.labels: "invalid-label"
+    asserts:
+      - failedTemplate: {}
+
+  - it: with custom annotations, custom annotations set
+    set:
+      operator.annotations:
+        annotation-1: annotation-1
+        annotation-2: annotation-2
+    asserts:
+      - exists:
+          path: metadata.annotations
+      - isSubset:
+          path: metadata.annotations
+          content:
+            annotation-1: annotation-1
+            annotation-2: annotation-2
+
+  - it: with invalid custom annotations, schema validation fails
+    set:
+      operator.annotations: "invalid-annotation"
+    asserts:
+      - failedTemplate: {}
+
+  - it: with image definition
+    set:
+      image.repository: test-repo
+      image.name: test-image
+      image.tag: snapshot
+      image.pullPolicy: IfNotPresent
+      image.pullSecretName: test-secret
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.imagePullSecrets[0]
+      - equal:
+          path: spec.statefulSet.spec.template.spec.imagePullSecrets[0].name
+          value: test-secret
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].image
+          value: test-repo/test-image:snapshot
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].imagePullPolicy
+          value: IfNotPresent
+
+  - it: with override init containers
+    set:
+      config.overrideInitContainers: |-
+        - name: test-init-container
+          image: busybox
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.initContainers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.initContainers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.initContainers[0].name
+          value: test-init-container
+      - equal:
+          path: spec.statefulSet.spec.template.spec.initContainers[0].image
+          value: busybox
+
+  - it: with additional init containers
+    set:
+      additionalInitContainers:
+        - name: test-init-container
+          image: busybox
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.initContainers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.initContainers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.initContainers[0].name
+          value: test-init-container
+      - equal:
+          path: spec.statefulSet.spec.template.spec.initContainers[0].image
+          value: busybox
+
+  - it: with empty override init containers
+    set:
+      config.overrideInitContainers:
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.initContainers
+
+  - it: with empty additional init containers
+    set:
+      additionalInitContainers:
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.initContainers
+
+  - it: with default settings, no init containers
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.initContainers
+
+  - it: with override init containers and additional init containers, then fails
+    set:
+      additionalInitContainers:
+        - name: foo-container
+          image: busybox
+      config.overrideInitContainers: |-
+        - name: bar-container
+          image: busybox
+    asserts:
+    - failedTemplate:
+        errorPattern: Only `additionalInitContainers` or `config.overrideInitContainers` can be defined at a time
+
+  - it: with default service account
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.serviceAccountName
+
+  - it: with custom service account
+    set:
+      nodes.serviceAccountName: my-custom-sa
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.serviceAccountName
+      - equal:
+          path: spec.statefulSet.spec.template.spec.serviceAccountName
+          value: my-custom-sa
+
+  - it: with containers
+    set:
+      nodes.replicaCount: 10
+      nodes.logLevel: ERROR
+    asserts:
+      - equal:
+          path: spec.logLevel
+          value: ERROR
+      - equal:
+          path: spec.statefulSet.spec.replicas
+          value: 10
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].name
+          value: hivemq
+
+  - it: with default values, no additional container is created
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].name
+          value: hivemq
+
+  - it: with additional containers
+    values:
+      - additional-containers-values.yaml
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 3
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].name
+          value: hivemq
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers
+          content:
+            name: my-container1
+            image: alpine:latest
+            command: ['sh', '-c', 'while true; do echo "logging" >> /opt/logs.txt; sleep 1; done']
+            volumeMounts:
+              - name: data
+                mountPath: /opt
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers
+          content:
+            name: my-container2
+            image: alpine:latest
+            env:
+              - name: MY_ENV_VAR
+                valueFrom:
+                  secretKeyRef:
+                    name: mysecretname
+                    key: mysecretkey
+
+  - it: with custom annotations for the HiveMQ container
+    set:
+      nodes.annotations:
+         annotation-key-1: annotation-value-1
+         annotation-key-2: annotation-value-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.metadata
+      - exists:
+          path: spec.statefulSet.spec.template.metadata.annotations
+      - notExists:
+          path: spec.statefulSet.spec.template.metadata.labels
+      - equal:
+          path: spec.statefulSet.spec.template.metadata.annotations
+          value:
+            annotation-key-1: annotation-value-1
+            annotation-key-2: annotation-value-2
+
+  - it: with custom labels for the HiveMQ container
+    set:
+      nodes.labels:
+        label-key-1: label-value-1
+        label-key-2: label-value-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.metadata
+      - notExists:
+          path: spec.statefulSet.spec.template.metadata.annotations
+      - exists:
+          path: spec.statefulSet.spec.template.metadata.labels
+      - equal:
+          path: spec.statefulSet.spec.template.metadata.labels
+          value:
+            label-key-1: label-value-1
+            label-key-2: label-value-2
+
+  - it: with custom annotations and labels for the HiveMQ container
+    set:
+      nodes.annotations:
+        annotation-key-1: annotation-value-1
+        annotation-key-2: annotation-value-2
+      nodes.labels:
+        label-key-1: label-value-1
+        label-key-2: label-value-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.metadata
+      - exists:
+          path: spec.statefulSet.spec.template.metadata.annotations
+      - exists:
+          path: spec.statefulSet.spec.template.metadata.labels
+      - equal:
+          path: spec.statefulSet.spec.template.metadata.annotations
+          value:
+            annotation-key-1: annotation-value-1
+            annotation-key-2: annotation-value-2
+      - equal:
+          path: spec.statefulSet.spec.template.metadata.labels
+          value:
+            label-key-1: label-value-1
+            label-key-2: label-value-2
+
+  - it: with custom environment variables for the HiveMQ container
+    values:
+      - custom-env-vars-values.yaml
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: MY_CUSTOM_ENV_VAR1
+            value: "mycustomvalue1"
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: MY_CUSTOM_ENV_VAR2
+            valueFrom:
+              secretKeyRef:
+                name: mysecret
+                key: mysecretkey
+                optional: false
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].env
+          content:
+            name: MY_CUSTOM_ENV_VAR3
+            valueFrom:
+              configMapKeyRef:
+                name: myconfigmap
+                key: myconfigmapkey
+                optional: true
+
+  - it: with default resource requests
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1000m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 2048M
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: 1000m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: 2048M
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+
+  - it: with custom resource requests
+    set:
+      nodes.resources.cpu: 1c
+      nodes.resources.memory: 1m
+      nodes.resources.ephemeralStorage: 1M
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 1m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+          value: 1M
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: 1c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: 1m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: 1M
+
+  - it: with custom numeric resource requests, schema validation fails
+    set:
+      nodes.resources.cpu: 1
+      nodes.resources.memory: 2
+      nodes.resources.ephemeralStorage: 3
+    asserts:
+      - failedTemplate: {}
+
+  - it: with custom numeric resource requests as string
+    set:
+      nodes.resources.cpu: "1"
+      nodes.resources.memory: "2"
+      nodes.resources.ephemeralStorage: "3"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: "1"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: "2"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+          value: "3"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: "1"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: "2"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: "3"
+
+  - it: with override resource limits and default resource requests
+    set:
+      nodes.resources.overrideLimits:
+        cpu: 2c
+        memory: 2m
+        ephemeral-storage: 2M
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1000m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 2048M
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: 2c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: 2m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: 2M
+
+  - it: with override resource limits and custom resource requests
+    set:
+      nodes.resources.cpu: 1c
+      nodes.resources.memory: 1m
+      nodes.resources.ephemeralStorage: 1M
+      nodes.resources.overrideLimits:
+        cpu: 2c
+        memory: 2m
+        ephemeral-storage: 2M
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 1m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+          value: 1M
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: 2c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: 2m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: 2M
+
+  - it: with override custom numeric resource limits as string
+    set:
+      nodes.resources.overrideLimits:
+        cpu: "1"
+        memory: "2"
+        ephemeral-storage: "3"
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.cpu
+          value: "1"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.memory
+          value: "2"
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits.ephemeral-storage
+          value: "3"
+
+  - it: with empty override resource limits
+    set:
+      nodes.resources.overrideLimits: {}
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1000m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 2048M
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits
+
+  - it: with empty override resource limits and custom resource requests
+    set:
+      nodes.resources.cpu: 1c
+      nodes.resources.memory: 1m
+      nodes.resources.ephemeralStorage: 1M
+      nodes.resources.overrideLimits: {}
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.cpu
+          value: 1c
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.memory
+          value: 1m
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.requests.ephemeral-storage
+          value: 1M
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].resources.limits
+
+  - it: with default values, no volumes are defined
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+
+  - it: with additional volumes
+    values:
+      - additional-volumes-values.yaml
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.volumes
+          count: 7
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-configmap-mount-volume
+            configMap:
+              name:  test-configmap-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-secret-volume
+            secret:
+              secretName: test-secret-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-empty-dir-volume
+            emptyDir: {}
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-persistent-volume-claim-volume
+            persistentVolumeClaim:
+              claimName: test-persistent-volume-claim-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-hivemq-configmap-volume-mount
+            configMap:
+              name: test-hivemq-configmap-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-non-hivemq-configmap-volume-mount
+            configMap:
+              name: test-non-hivemq-configmap-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-projected-volume
+            projected:
+              sources:
+                - configMap:
+                    items:
+                      - key: config
+                        path: my-config
+                    name: test-projected-configmap-volume
+                - secret:
+                    name: test-projected-secret-volume
+                    items:
+                      - key: username
+                        path: my-username
+                - serviceAccountToken:
+                    audience: api
+                    expirationSeconds: 3600
+                    path: token
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0]
+      - equal:
+          path: spec.statefulSet.spec.template.spec.containers[0].name
+          value: hivemq
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          count: 6
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-configmap-mount-volume
+            mountPath: /additional-configmap-volume-1/subpath-configmap
+            subPath: subpath-configmap
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-secret-volume
+            mountPath: /additional-secret-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-empty-dir-volume
+            mountPath: /additional-empty-dir-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-persistent-volume-claim-volume
+            mountPath: /additional-persistent-volume-claim-volume
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-hivemq-configmap-volume-mount
+            mountPath: /additional-configmap-volume-2/subpath-configmap
+            subPath: subpath-configmap
+      - notContains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-non-hivemq-volume-mount
+            mountPath: /additional-configmap-volume-3/subpath-configmap
+            subPath: subpath-configmap
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-projected-volume
+            mountPath: /additional-projected-volume
+
+  - it: with duplicated additionalVolumes `mountName` value in same `hivemq` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: test-configmap-volume-1
+          mountName: foobar-mount-volume
+          path: /additional-configmap-volume-1
+        - type: configMap
+          mountName: foobar-mount-volume
+          name: test-configmap-volume-2
+          path: /additional-configmap-volume-2
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount `foobar-mount-volume` (name: `test-configmap-volume-2` value, mountName: `foobar-mount-volume` value) is duplicated for container `hivemq`
+
+  - it: with duplicated additionalVolumes `mountName` value in same `foobar` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: test-configmap-volume-1
+          containerName: foobar
+          mountName: foobar-mount-volume
+          path: /additional-configmap-volume-1
+        - type: configMap
+          containerName: foobar
+          mountName: foobar-mount-volume
+          name: test-configmap-volume-2
+          path: /additional-configmap-volume-2
+    asserts:
+      - failedTemplate:
+          errorPattern: |- 
+            VolumeMount `foobar-mount-volume` (name: `test-configmap-volume-2` value, mountName: `foobar-mount-volume` value) is duplicated for container `foobar`
+
+  - it: with duplicated additionalVolumes `mountName` value but different containers, then succeeds
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: test-configmap-volume-1
+          containerName: hivemq
+          mountName: foobar-mount-volume
+          path: /additional-configmap-volume-1
+        - type: configMap
+          containerName: foobar
+          mountName: foobar-mount-volume
+          name: test-configmap-volume-2
+          path: /additional-configmap-volume-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: foobar-mount-volume
+            mountPath: /additional-configmap-volume-1
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.volumes
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: foobar-mount-volume
+            configMap:
+              name: test-configmap-volume-1
+
+  - it: with duplicated additionalVolumes `name` value in same `hivemq` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foobar-mount-volume
+          path: /additional-configmap-volume-1
+        - type: configMap
+          name: foobar-mount-volume
+          path: /additional-configmap-volume-2
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount `foobar-mount-volume` (name: `foobar-mount-volume` value, mountName: `` value) is duplicated for container `hivemq`
+
+  - it: with duplicated additionalVolumes `name` value in same `foobar` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume-1
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume-2
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount `foobar-mount-volume` (name: `foobar-mount-volume` value, mountName: `` value) is duplicated for container `foobar`
+
+  - it: with duplicated additionalVolumes `path` for the default container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          path: /additional-configmap-volume
+        - type: configMap
+          name: bar-mount-volume
+          path: /additional-configmap-volume
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount path `/additional-configmap-volume` (path: `/additional-configmap-volume` value, subPath: `` value) is duplicated for container `hivemq`
+
+  - it: with duplicated additionalVolumes `subPath` for the default container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          path: /additional-configmap-volume
+          subPath: subpath
+        - type: configMap
+          name: bar-mount-volume
+          path: /additional-configmap-volume
+          subPath: subpath
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount path `/additional-configmap-volume/subpath` (path: `/additional-configmap-volume` value, subPath: `subpath` value) is duplicated for container `hivemq`
+
+  - it: with duplicated additionalVolumes `path` but different `subPath` for the default container, then succeeds
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          path: /additional-configmap-volume
+        - type: configMap
+          name: bar-mount-volume
+          path: /additional-configmap-volume
+          subPath: subpath
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with duplicated additionalVolumes `path` for the same `foobar` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+        - type: configMap
+          name: bar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            VolumeMount path `/additional-configmap-volume` (path: `/additional-configmap-volume` value, subPath: `` value) is duplicated for container `foobar`
+
+  - it: with duplicated additionalVolumes `subPath` for the same `foobar` container, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+          subPath: subpath
+        - type: configMap
+          name: bar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+          subPath: subpath
+    asserts:
+      - failedTemplate:
+          errorPattern: |- 
+            VolumeMount path `/additional-configmap-volume/subpath` (path: `/additional-configmap-volume` value, subPath: `subpath` value) is duplicated for container `foobar`
+
+  - it: with duplicated additionalVolumes `path` but different `subPath` for the same `foobar` container, then succeeds
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foo-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+        - type: configMap
+          name: bar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume
+          subPath: subpath
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with duplicated additionalVolumes `name` value but different containers, then succeeds
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: hivemq
+          path: /additional-configmap-volume-1
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: foobar-mount-volume
+            mountPath: /additional-configmap-volume-1
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.volumes
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: foobar-mount-volume
+            configMap:
+              name: foobar-mount-volume
+
+  - it: with duplicated volumes but same type, then succeeds with no duplicates
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: hivemq
+          path: /additional-configmap-volume-1
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume-2
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: foobar-mount-volume
+            mountPath: /additional-configmap-volume-1
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.volumes
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: foobar-mount-volume
+            configMap:
+              name: foobar-mount-volume
+
+  - it: with duplicated volumes but different type, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          name: foobar-mount-volume
+          containerName: hivemq
+          path: /additional-configmap-volume-1
+        - type: secret
+          name: foobar-mount-volume
+          containerName: foobar
+          path: /additional-configmap-volume-2
+    asserts:
+      - failedTemplate:
+          errorPattern: |-
+            Volume `foobar-mount-volume` (name: `foobar-mount-volume` value, mountName: `` value) is defined more than once but with different types
+
+  - it: with invalid additional volume `type`, then schema validation fails
+    set:
+      additionalVolumes:
+        - type: fakeAdditionalVolume
+          name: fake-volume-name
+          path: /fake-volume-path
+    asserts:
+      - failedTemplate: {}
+
+  - it: with additional volume `projected` and invalid `projectedSources` type, then schema validation fails
+    set:
+      additionalVolumes:
+        - type: fakeAdditionalVolume
+          name: fake-volume-name
+          path: /fake-volume-path
+          projectedSources:
+            configMap:
+              name: test-projected-configmap-volume
+              items:
+                - key: config
+                  path: my-config
+    asserts:
+      - failedTemplate: {}
+
+  - it: with missing mandatory additional volume `type` for `hivemq` container, then fails
+    set:
+      additionalVolumes:
+        - name: fake-volume-name
+          path: /fake-volume-path
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `type` value is mandatory for all of the `additionalVolumes` defined
+
+  - it: with missing mandatory additional volume `type` for `foobar` container, then fails
+    set:
+      additionalVolumes:
+        - name: fake-volume-name
+          path: /fake-volume-path
+          containerName: foobar
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `type` value is mandatory for all of the `additionalVolumes` defined
+
+  - it: with missing mandatory additional volume `path` for `hivemq` container, then fails
+    set:
+      additionalVolumes:
+        - name: fake-volume-name
+          type: configMap
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `path` values is mandatory for all of the `additionalVolumes` defined for the `hivemq` container
+
+  - it: with missing mandatory additional volume `path` for `foobar` container, then succeeds
+    set:
+      additionalVolumes:
+        - type: emptyDir
+          mountName: test-empty-mount-volume
+          containerName: foobar
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-empty-mount-volume
+            emptyDir: {}
+
+  - it: with missing both additional volume `name` and `mountName`, then fails
+    set:
+      additionalVolumes:
+        - type: emptyDir
+          path: /fake-volume-path
+    asserts:
+      - failedTemplate:
+          errorPattern: At least one of `name` or `mountName` values must be defined
+
+  - it: with additional volume type `configMap` but missing `name`, then fails
+    set:
+      additionalVolumes:
+        - type: configMap
+          path: /fake-volume-path
+          mountName: fake-volume-mount-name
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `name` value is required for types "configMap", "secret" and "persistentVolumeClaim"
+
+  - it: with additional volume type `secret` but missing `name`, then fails
+    set:
+      additionalVolumes:
+        - type: secret
+          path: /fake-volume-path
+          mountName: fake-volume-mount-name
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `name` value is required for types "configMap", "secret" and "persistentVolumeClaim"
+
+  - it: with additional volume type `persistentVolumeClaim` but missing `name`, then fails
+    set:
+      additionalVolumes:
+        - type: persistentVolumeClaim
+          path: /fake-volume-path
+          mountName: fake-volume-mount-name
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499
+            `name` value is required for types "configMap", "secret" and "persistentVolumeClaim"
+
+  - it: with additional volume type `emptyDir` but missing `name`, then succeeds
+    set:
+      additionalVolumes:
+        - type: emptyDir
+          path: /additional-empty-dir-volume
+          mountName: test-empty-mount-volume
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-empty-mount-volume
+            mountPath: /additional-empty-dir-volume
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-empty-mount-volume
+            emptyDir: {}
+
+  - it: with additional volume type `projected` but missing `name`, then succeeds
+    set:
+      additionalVolumes:
+        - type: projected
+          path: /additional-projected-volume
+          mountName: test-projected-mount-volume
+          projectedSources:
+            - configMap:
+                name: test-projected-configmap-volume
+                items:
+                  - key: config
+                    path: my-config
+            - serviceAccountToken:
+                audience: api
+                expirationSeconds: 3600
+                path: token
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: test-projected-mount-volume
+            mountPath: /additional-projected-volume
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+      - lengthEqual:
+          path: spec.statefulSet.spec.template.spec.volumes
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: test-projected-mount-volume
+            projected:
+              sources:
+                - configMap:
+                    items:
+                      - key: config
+                        path: my-config
+                    name: test-projected-configmap-volume
+                - serviceAccountToken:
+                    audience: api
+                    expirationSeconds: 3600
+                    path: token
+
+  - it: with additional volume type `projected` but missing `projectedSources`, then fails
+    set:
+      additionalVolumes:
+        - type: projected
+          path: /fake-volume-path
+          mountName: fake-volume-mount-name
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499  
+            `projectedSources` value is required for type "projected"
+
+  - it: with additional volume type different than `projected` but `projectedSources` is present, then fails
+    set:
+      additionalVolumes:
+        - type: emptyDir
+          path: /fake-volume-path
+          mountName: fake-volume-mount-name
+          projectedSources:
+            - configMap:
+                name: test-projected-configmap-volume
+                items:
+                  - key: config
+                    path: my-config
+    asserts:
+      - failedTemplate:
+          errorPattern: |- # FIXME: |- character can be removed once the Helm Unittest plugin issue is fixed https://github.com/helm-unittest/helm-unittest/issues/499  
+            `projectedSources` value is only available for type "projected"
+
+  - it: with default settings, no volume claim template is set
+    asserts:
+      - notExists:
+          path: spec.statefulSet.spec.template.volumeClaimTemplates
+
+  - it: with custom volume claim template
+    set:
+      volumeClaimTemplates:
+        - kind: PersistentVolumeClaim
+          apiVersion: v1
+          metadata:
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.volumeClaimTemplates
+      - lengthEqual:
+          path: spec.statefulSet.spec.volumeClaimTemplates
+          count: 1
+      - contains:
+          path: spec.statefulSet.spec.volumeClaimTemplates
+          content:
+            kind: PersistentVolumeClaim
+            apiVersion: v1
+            metadata:
+              name: data
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 100Gi
+              volumeMode: Filesystem
+
+  - it: with missing mandatory element `kind` for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - apiVersion: v1
+          metadata:
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - failedTemplate: {}
+
+  - it: with missing mandatory element `apiVersion` for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - kind: PersistentVolumeClaim
+          metadata:
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - failedTemplate: {}
+
+  - it: with missing mandatory element `metadata` for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - kind: PersistentVolumeClaim
+          apiVersion: v1
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - failedTemplate: {}
+
+  - it: with missing mandatory element `spec` for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - kind: PersistentVolumeClaim
+          apiVersion: v1
+          metadata:
+            name: data
+    asserts:
+      - failedTemplate: {}
+
+  - it: with invalid `kind` element for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - kind: InvalidKind
+          apiVersion: v1
+          metadata:
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - failedTemplate: {}
+
+  - it: with invalid `apiVersion` element for volume claim template, then schema validation fails
+    set:
+      volumeClaimTemplates:
+        - kind: PersistentVolumeClaim
+          apiVersion: InvalidVersion
+          metadata:
+            name: data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 100Gi
+            volumeMode: Filesystem
+    asserts:
+      - failedTemplate: {}
+
+  - it: with pod scheduling values set
+    values:
+      - pod-scheduling-values.yaml
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.spec.affinity
+      - isSubset:
+          path: spec.statefulSet.spec.template.spec.affinity
+          content:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                          - my-app
+                  topologyKey: "kubernetes.io/hostname"
+      - exists:
+          path: spec.statefulSet.spec.template.spec.tolerations
+      - contains:
+          path: spec.statefulSet.spec.template.spec.tolerations
+          content:
+            effect: NoSchedule
+            key: my-key
+            operator: Exists
+
+  - it: with custom pod annotations
+    set:
+      nodes:
+        annotations:
+          ad.datadoghq.com/hivemq.check_names: '["hivemq"]'
+          ad.datadoghq.com/hivemq.init_configs: '[{"is_jmx": true, "collect_default_metrics": true}]'
+          ad.datadoghq.com/hivemq.instances: '[{"host": "%%host%%", "port": "9010"}]'
+          ad.datadoghq.com/hivemq.logs: '[{"source": "hivemq", "service": "hivemq-platform-mqtt-1883"}]'
+    asserts:
+      - exists:
+          path: spec.statefulSet.spec.template.metadata.annotations
+      - isSubset:
+          path: spec.statefulSet.spec.template.metadata.annotations
+          content:
+            ad.datadoghq.com/hivemq.check_names: '["hivemq"]'
+            ad.datadoghq.com/hivemq.init_configs: '[{"is_jmx": true, "collect_default_metrics": true}]'
+            ad.datadoghq.com/hivemq.instances: '[{"host": "%%host%%", "port": "9010"}]'
+            ad.datadoghq.com/hivemq.logs: '[{"source": "hivemq", "service": "hivemq-platform-mqtt-1883"}]'
+
+  - it: with default settings, statefulsetMigration spec is not present
+    asserts:
+      - notExists:
+          path: spec.statefulSetMigration
+
+  - it: with statefulSet migration enabled, then statefulsetMigration spec enabled
+    set:
+      migration.statefulSet: true
+      services: []
+    asserts:
+      - equal:
+          path: spec.statefulSetMigration
+          value: true
+
+  - it: with statefulSet migration enabled, but no mandatory values set for service, then fails
+    set:
+      migration.statefulSet: true
+      services:
+        - type: mqtt
+          exposed: true
+          port: 1883
+          legacyPortName: mqtt
+    asserts:
+      - failedTemplate: {}
+
+  - it: with statefulSet migration disabled, then statefulsetMigration spec disabled
+    set:
+      migration.statefulSet: false
+    asserts:
+      - notExists:
+          path: spec.statefulSetMigration

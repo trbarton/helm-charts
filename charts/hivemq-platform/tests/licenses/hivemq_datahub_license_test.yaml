@@ -1,0 +1,1254 @@
+suite: HiveMQ Platform - HiveMQ Data Hub license tests
+templates:
+  - hivemq-custom-resource.yml
+  - hivemq-license.yml
+release:
+  name: test-hivemq-platform
+tests:
+
+  - it: with data hub license, Secret metadata is correct
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+    asserts:
+      - containsDocument:
+          kind: Secret
+          apiVersion: v1
+          name: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+
+  - it: with data hub license only, no additional license added
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+    asserts:
+      - notExists:
+          path: data["license.lic"]
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: datahub1-license-content
+        template: hivemq-license.yml
+
+  - it: with data hub license data empty, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub1' license content cannot be empty. Please, use either `data` or `overrideLicense` values
+        template: hivemq-license.yml
+
+  - it: with data hub license overrideLicense empty, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            overrideLicense: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub1' license content cannot be empty. Please, use either `data` or `overrideLicense` values
+        template: hivemq-license.yml
+
+  - it: with data hub license overrideLicense and data empty, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ""
+            overrideLicense: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub1' license content cannot be empty. Please, use either `data` or `overrideLicense` values
+        template: hivemq-license.yml
+
+  - it: with data hub license overrideLicense and data set, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content1
+            overrideLicense: datahub1-license-content2
+    asserts:
+      - failedTemplate:
+          errorPattern: Both `data` and `overrideLicense` values are set for the HiveMQ Data Hub 'datahub1' license content. Please, use only one of them
+        template: hivemq-license.yml
+
+  - it: with invalid data hub license values, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            foo: datahub1-license-content1
+            bar: datahub1-license-content2
+    asserts:
+      - failedTemplate:
+          errorPattern: Invalid values for setting the HiveMQ Data Hub 'datahub1' license content. Only `data` or `overrideLicense` values are allowed
+        template: hivemq-license.yml
+
+  - it: with invalid Base64 encoded data hub license data, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: invalid-base64-encoded-data
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub1' license data content is not a Base64 encoded string
+        template: hivemq-license.yml
+
+  - it: with invalid Base64 encoded data hub license data but Base64 encoded disabled, then validation succeeds
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        dataHub:
+          datahub1:
+            data: invalid-base64-encoded-data
+    asserts:
+      - notFailedTemplate: { hivemq-license.yml }
+      - hasDocuments:
+          count: 1
+        template: hivemq-license.yml
+
+  - it: with valid and invalid Base64 encoded data hub licenses data, then validation fails
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+          datahub2:
+            data: invalid-base64-encoded-data
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub2' license data content is not a Base64 encoded string
+        template: hivemq-license.yml
+
+  - it: with valid Base64 encoded broker license data and invalid Base64 encoded data hub license data, then validation fails
+    set:
+      license:
+        create: true
+        data: YnJva2VyLWxpY2Vuc2UtY29udGVudA== # broker-license-content
+        dataHub:
+          datahub1:
+            data: invalid-base64-encoded-data
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Data Hub 'datahub1' license data content is not a Base64 encoded string
+        template: hivemq-license.yml
+
+  - it: with invalid Base64 encoded broker license data and valid Base64 encoded data hub license data, then validation fails
+    set:
+      license:
+        create: true
+        data: invalid-base64-encoded-data
+        dataHub:
+          dataHub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+    asserts:
+      - failedTemplate:
+          errorPattern: HiveMQ Broker 'license.lic' license data content is not a Base64 encoded string
+        template: hivemq-license.yml
+
+  - it: with data hub license data, data hub license created
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - notExists:
+          path: data["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear data hub license data, data hub license created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        dataHub:
+          datahub1:
+            data: datahub1-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with multiple data hub license data, multiple data hub licenses created
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+          datahub2:
+            data: ZGF0YWh1YjItbGljZW5zZS1jb250ZW50 # datahub2-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - notExists:
+          path: data["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub2.plic"]
+          decodeBase64: true
+          value: datahub2-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with multiple clear data hub license data, multiple data hub licenses created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        dataHub:
+          datahub1:
+            data: datahub1-license-content
+          datahub2:
+            data: datahub2-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub2.plic"]
+          value: datahub2-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with broker license data and multiple data hub license data, broker and multiple data hub licenses created
+    set:
+      license:
+        create: true
+        data: YnJva2VyLWxpY2Vuc2UtY29udGVudA== # broker-license-content
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+          datahub2:
+            data: ZGF0YWh1YjItbGljZW5zZS1jb250ZW50 # datahub2-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["license.lic"]
+          decodeBase64: true
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub2.plic"]
+          decodeBase64: true
+          value: datahub2-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear broker license data and multiple clear data hub license data, broker and multiple data hub licenses created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        data: broker-license-content
+        dataHub:
+          datahub1:
+            data: datahub1-license-content
+          datahub2:
+            data: datahub2-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["license.lic"]
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub2.plic"]
+          value: datahub2-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with data hub overrideLicense, data hub license created
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - notExists:
+          path: data["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+        template: hivemq-custom-resource.yml
+
+  - it: with clear data hub overrideLicense, data hub license created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+        template: hivemq-custom-resource.yml
+
+  - it: with multiple data hub license overrideLicenses, multiple data hub licenses created
+    set:
+      license:
+        create: true
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - notExists:
+          path: data["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub2.plic"]
+          decodeBase64: true
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with multiple clear data hub license overrideLicenses, multiple data hub licenses created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData["license.lic"]
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub2.plic"]
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with broker license overrideLicense and multiple data hub license overrideLicenses, broker and data hub licenses created
+    set:
+      license:
+        create: true
+        overrideLicense: |-
+          broker-license-content1
+          broker-license-content2
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["license.lic"]
+          decodeBase64: true
+          value: |-
+            broker-license-content1
+            broker-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub2.plic"]
+          decodeBase64: true
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear broker license overrideLicense and multiple clear data hub license overrideLicenses, broker and data hub licenses created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        overrideLicense: |-
+          broker-license-content1
+          broker-license-content2
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["license.lic"]
+          value: |-
+            broker-license-content1
+            broker-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub2.plic"]
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with broker license data and data hub license overrideLicenses, broker and data hub license created
+    set:
+      license:
+        create: true
+        data: YnJva2VyLWxpY2Vuc2UtY29udGVudA== # broker-license-content
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["license.lic"]
+          decodeBase64: true
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear broker license data and clear data hub license overrideLicenses, broker and data hub license created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        data: broker-license-content
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["license.lic"]
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with broker license data and multiple data hub license overrideLicenses, broker and data hub licenses created
+    set:
+      license:
+        create: true
+        data: YnJva2VyLWxpY2Vuc2UtY29udGVudA== # broker-license-content
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["license.lic"]
+          decodeBase64: true
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub2.plic"]
+          decodeBase64: true
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear broker license data and multiple clear data hub license overrideLicenses, broker and data hub licenses created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        data: broker-license-content
+        dataHub:
+          datahub1:
+            overrideLicense: |-
+              datahub1-license-content1
+              datahub1-license-content2
+          datahub2:
+            overrideLicense: |-
+              datahub2-license-content1
+              datahub2-license-content2
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["license.lic"]
+          value: broker-license-content
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: |-
+            datahub1-license-content1
+            datahub1-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub2.plic"]
+          value: |-
+            datahub2-license-content1
+            datahub2-license-content2
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with broker license overrideLicense and data hub license data, broker and data hub license created
+    set:
+      license:
+        create: true
+        overrideLicense: |-
+          broker-license-content1
+          broker-license-content2
+        dataHub:
+          datahub1:
+            data: ZGF0YWh1YjEtbGljZW5zZS1jb250ZW50 # datahub1-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: stringData
+        template: hivemq-license.yml
+      - exists:
+          path: data
+        template: hivemq-license.yml
+      - equal:
+          path: data["license.lic"]
+          decodeBase64: true
+          value: |-
+            broker-license-content1
+            broker-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: data["datahub1.plic"]
+          decodeBase64: true
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml
+
+  - it: with clear broker license overrideLicense and clear data hub license data, broker and data hub license created without Base64 encoded
+    set:
+      license:
+        create: true
+        isLicenseBase64Encoded: false
+        overrideLicense: |-
+          broker-license-content1
+          broker-license-content2
+        dataHub:
+          datahub1:
+            data: datahub1-license-content
+    asserts:
+      - isKind:
+          of: Secret
+        template: hivemq-license.yml
+      - equal:
+          path: metadata.name
+          value: hivemq-license-test-hivemq-platform
+        template: hivemq-license.yml
+      - notExists:
+          path: data
+        template: hivemq-license.yml
+      - exists:
+          path: stringData
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["license.lic"]
+          value: |-
+            broker-license-content1
+            broker-license-content2
+        template: hivemq-license.yml
+      - equal:
+          path: stringData["datahub1.plic"]
+          value: datahub1-license-content
+        template: hivemq-license.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.containers[0].volumeMounts
+          content:
+            name: licenses
+            mountPath: /opt/hivemq/license
+          count: 1
+        template: hivemq-custom-resource.yml
+      - exists:
+          path: spec.statefulSet.spec.template.spec.volumes
+        template: hivemq-custom-resource.yml
+      - contains:
+          path: spec.statefulSet.spec.template.spec.volumes
+          content:
+            name: licenses
+            secret:
+              secretName: hivemq-license-test-hivemq-platform
+          count: 1
+        template: hivemq-custom-resource.yml

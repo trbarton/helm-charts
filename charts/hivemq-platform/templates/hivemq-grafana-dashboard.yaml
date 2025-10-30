@@ -1,0 +1,25 @@
+{{- if and .Values.monitoring.enabled .Values.monitoring.dashboard.create }}
+{{- include "hivemq-platform.validate-prometheus-monitoring-stack-installed" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    grafana_dashboard: "1"
+    {{- include "hivemq-platform.labels" . | nindent 4 }}
+  name: {{ include "hivemq-platform.name" (dict "name" "dashboard" "releaseName" .Release.Name) }}
+  {{- if and (hasKey .Values.monitoring "dashboard") (hasKey .Values.monitoring.dashboard "namespace") }}
+  namespace: {{ .Values.monitoring.dashboard.namespace }}
+  {{- else }}
+  namespace: {{ .Release.Namespace }}
+  {{- end }}
+data:
+  {{- if .Values.monitoring.dashboard.overrideDashboard }}
+  hivemq-dashboard.json: |
+    {{- range .Values.monitoring.dashboard.overrideDashboard | toStrings }}
+    {{ . | nindent 4 }}
+    {{- end }}
+  {{- else }}
+  hivemq-dashboard.json: |
+    {{- .Files.Get "files/grafana-dashboard.json" | nindent 4 }}
+  {{- end }}
+{{- end }}

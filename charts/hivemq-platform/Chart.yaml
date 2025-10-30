@@ -1,0 +1,23 @@
+apiVersion: v2
+name: hivemq-platform
+description: HiveMQ Platform Helm Chart
+type: application
+version: 0.2.52
+appVersion: 4.46.0
+maintainers:
+  - email: support@hivemq.com
+    name: HiveMQ
+keywords:
+  - HiveMQ
+  - HiveMQ Platform
+  - Broker
+  - MQTT
+  - IoT
+  - Java
+  - distributed
+  - messaging
+icon: https://www.hivemq.com/img/svg/hivemq-bee.svg
+annotations:
+  artifacthub.io/signKey: |
+    fingerprint: 62EA05AEB2030F932532F8D96B695D55352A7E7D
+    url: https://www.hivemq.com/public.pgp

@@ -1,0 +1,51 @@
+suite: HiveMQ Platform - NOTES tests
+templates:
+  - NOTES.txt
+release:
+  name: test-hivemq-platform
+  namespace: test-hivemq-platform-namespace
+tests:
+
+  - it: with default values
+    asserts:
+      - equalRaw:
+          value: |
+            -----
+            HiveMQ Platform release "test-hivemq-platform" installed in namespace "test-hivemq-platform-namespace"
+            
+            Documentation can be found here: https://docs.hivemq.com/hivemq-platform-operator/index.html
+            -----
+
+  - it: with override init containers, shows warning
+    set:
+      config.overrideInitContainers: |-
+        - name: foo-bar-container
+          image: busybox
+    asserts:
+      - equalRaw:
+          value: |
+            -----
+            HiveMQ Platform release "test-hivemq-platform" installed in namespace "test-hivemq-platform-namespace"
+            
+            Documentation can be found here: https://docs.hivemq.com/hivemq-platform-operator/index.html
+            
+            *** Warning ***
+            `config.overrideInitContainers` value is deprecated and will be removed in future releases.
+            Please, consider using `additionalInitContainers` value instead.
+            -----
+
+  - it: with override resource limits, shows warning
+    set:
+      nodes.resources.overrideLimits:
+        cpu: 1m
+    asserts:
+      - equalRaw:
+          value: |
+            -----
+            HiveMQ Platform release "test-hivemq-platform" installed in namespace "test-hivemq-platform-namespace"
+            
+            Documentation can be found here: https://docs.hivemq.com/hivemq-platform-operator/index.html
+            
+            *** Warning ***
+            `nodes.resources.overrideLimits` is not recommended for production use cases and may lead to unpredictable memory and cpu allocation for pods.
+            -----

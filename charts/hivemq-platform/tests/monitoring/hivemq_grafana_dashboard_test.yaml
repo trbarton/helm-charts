@@ -1,0 +1,146 @@
+suite: HiveMQ Platform - Grafana Dashboard ConfigMap tests
+templates:
+  - hivemq-grafana-dashboard.yaml
+release:
+  name: test-hivemq-platform
+  namespace: test-hivemq-platform-namespace
+chart:
+  version: 0.0.1
+  appVersion: 1.0.0
+capabilities:
+  apiVersions:
+    - monitoring.coreos.com/v1
+tests:
+
+  - it: with default values, default ConfigMap not created
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 0
+
+  - it: with monitoring enabled and Prometheus Monitoring CRDs present, ConfigMap created
+    set:
+      monitoring.enabled: true
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 1
+
+  - it: with monitoring enabled and create disabled, ConfigMap not created
+    set:
+      monitoring:
+        enabled: true
+        dashboard:
+          create: false
+    asserts:
+      - notFailedTemplate: {}
+      - hasDocuments:
+          count: 0
+
+  - it: with long Helm release name, ConfigMap name truncated
+    release:
+      name: a-very-long-hivemq-platform-release-name
+    set:
+      monitoring.enabled: true
+    asserts:
+      - equal:
+          path: metadata.name
+          value: hivemq-platform-dashboard-a-very-long-hivemq-platform-release-n
+
+  - it: with no Prometheus Monitoring CRDs installed, validation fails
+    set:
+      monitoring.enabled: true
+    capabilities:
+      apiVersions:
+    asserts:
+      - failedTemplate:
+          errorPattern: There is no Prometheus ServiceMonitor CustomResourceDefinition \(CRD\) available in your Kubernetes cluster. Prometheus Monitoring CRDs are required before installing the ServiceMonitor resource.
+
+  - it: with invalid Dashboard namespace, schema validation fails
+    set:
+      monitoring:
+        enabled: true
+        dashboard:
+          namespace: this-is-an-extremely-very-very-long-hivemq-platform-namespace-name
+    asserts:
+      - failedTemplate: {}
+
+  - it: with default values, default ConfigMap resource created
+    set:
+      monitoring.enabled: true
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: ConfigMap
+          name: hivemq-platform-dashboard-test-hivemq-platform
+
+  - it: with monitoring enabled and default values, ConfigMap metadata created with defaults values
+    set:
+      monitoring.enabled: true
+    asserts:
+      - isSubset:
+          path: metadata
+          content:
+            labels:
+              helm.sh/chart: hivemq-platform-0.0.1
+              app.kubernetes.io/name: hivemq-platform
+              app.kubernetes.io/instance: test-hivemq-platform
+              app.kubernetes.io/version: 1.0.0
+              app.kubernetes.io/managed-by: Helm
+              grafana_dashboard: "1"
+            name: hivemq-platform-dashboard-test-hivemq-platform
+            namespace: test-hivemq-platform-namespace
+
+  - it: with monitoring enabled and custom metadata values, ConfigMap metadata created with custom values
+    release:
+      name: custom-release-name
+      namespace: custom-release-namespace
+    chart:
+      appVersion: 1.0.0
+      version: 0.1.0
+    set:
+      monitoring:
+        enabled: true
+        dashboard:
+          namespace: my-custom-dashboard-namespace
+    asserts:
+      - isSubset:
+          path: metadata
+          content:
+            labels:
+              helm.sh/chart: hivemq-platform-0.1.0
+              app.kubernetes.io/name: hivemq-platform
+              app.kubernetes.io/instance: custom-release-name
+              app.kubernetes.io/version: 1.0.0
+              app.kubernetes.io/managed-by: Helm
+              grafana_dashboard: "1"
+            name: hivemq-platform-dashboard-custom-release-name
+            namespace: my-custom-dashboard-namespace
+
+  - it: with monitoring enabled and overrideDashboard set, custom ConfigMap spec created with custom values
+    set:
+      monitoring:
+        enabled: true
+        dashboard:
+          overrideDashboard: |-
+            {
+              "my-custom-grafana-title": "foobar"
+            }
+    asserts:
+      - exists:
+          path: data["hivemq-dashboard.json"]
+      - equal:
+          path: data["hivemq-dashboard.json"]
+          value: |
+            {
+              "my-custom-grafana-title": "foobar"
+            }
+
+  - it: with monitoring enabled and default values, ConfigMap spec created with defaults values
+    set:
+      monitoring.enabled: true
+    asserts:
+      - exists:
+          path: data["hivemq-dashboard.json"]
+      - matchSnapshot:
+          path: data["hivemq-dashboard.json"]

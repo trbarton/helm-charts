@@ -1,0 +1,54 @@
+services:
+  - type: websocket
+    exposed: true
+    containerPort: 8001
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+  - type: websocket
+    exposed: true
+    containerPort: 8002
+    keystoreSecretName: "keystore-secret"
+    keystorePasswordSecretName: "secret-password"
+    path: /secure-mqtt-path
+  - type: websocket
+    exposed: true
+    containerPort: 8003
+    keystoreSecretName: "keystore-secret1"
+    keystorePasswordSecretName: "secret-password1"
+  - type: websocket
+    exposed: false
+    containerPort: 8004
+    keystoreSecretName: "keystore-secret2"
+    keystorePasswordSecretName: "secret-password2"
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-ws-listener-8004
+    hivemqConnectOverloadProtection:
+      enabled: true
+      connectRate: 500
+      connectBurstSize: 1000
+  - type: websocket
+    exposed: true
+    containerPort: 8005
+    keystoreSecretName: "keystore-secret3"
+    keystorePassword: "a2V5LWNoYW5nZW1lCg==" # key-changeme
+    keystorePrivatePassword: "cHJpdmF0ZS1rZXktY2hhbmdlbWU=" # private-key-changeme
+    hivemqProxyProtocol: false
+    hivemqListenerName: my-custom-ws-listener-8005
+  - type: websocket
+    exposed: true
+    containerPort: 8006
+    keystoreSecretName: "keystore-secret4"
+    keystorePasswordSecretName: "secret-password4"
+    keystorePrivatePasswordSecretKey: "my-custom-secret-key.private-password"
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-ws-listener-8006
+  - type: websocket
+    exposed: true
+    containerPort: 8007
+    hivemqProxyProtocol: true
+    hivemqListenerName: my-custom-ws-listener-8007
+    hivemqConnectOverloadProtection:
+      enabled: false
+      connectRate: 100
+      connectBurstSize: 200
+    path: /mqtt-path
